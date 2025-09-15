@@ -76,3 +76,14 @@ This resets both the SQLite database and migrations, which is safe since I’m n
 I also learned that ForeignKey is purely SQL (constraints), while relationship and back_populates exist only in the ORM layer to enable OOP-style access (user.posts ↔ post.author). This clarified why both are necessary.
 
 #### 5.
+User registration and login flow
+
+In the tutorial, after a new user registers, they are redirected to the login page and must log in manually.  
+I changed this so that a new user is **automatically logged in immediately after registration**.  
+
+To support this, I:
+- Called `login_user(user)` right after committing the new user in the `/register` route.
+- Added a helper function `get_next_page()` to centralize safe handling of the `?next=` query parameter and prevent open redirect attacks.
+- Updated both `/login` and `/register` routes to reuse this helper, ensuring users are redirected either to their original destination (if provided) or back to `/index`.
+
+This change improves the user experience by skipping the unnecessary extra login step and keeping the redirect logic DRY and secure.

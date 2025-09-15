@@ -3,6 +3,7 @@ from flask              import Flask
 from flask_sqlalchemy   import SQLAlchemy
 from flask_migrate      import Migrate
 from dotenv             import load_dotenv
+from flask_login        import LoginManager
 
 # Local imports
 from config import Config
@@ -13,6 +14,10 @@ load_dotenv()
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
+
+login = LoginManager(app)
+login.login_view = 'login'  # Specify the login view for @login_required
+
 
 # Initialize database and migration objects
 db      = SQLAlchemy(app)

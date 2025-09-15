@@ -25,4 +25,5 @@
     <p>{{ form.submit() }}</p>
 
   </form>
+  <p>New user? <a href="{{ url_for('register', next=request.args.get('next')) }}">Click here to register</a></p>
 {% endblock %}

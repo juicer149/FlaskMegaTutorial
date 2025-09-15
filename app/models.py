@@ -23,13 +23,14 @@ class User(UserMixin, db.Model):
                                     sa.String(120), index=True, unique=True
                                     )
     # Optional for now as in the book duo to no auth yet
-    password_hash: orm.Mapped[Optional[str]] = orm.mapped_column( 
-                                                                 sa.String(256),
-                                                                 )
-    # Same as Mapped[List['Post']] but is more compadible with mypy
+    password_hash: orm.Mapped[Optional[str]] = orm.mapped_column( sa.String(256) )
+
     posts: orm.WriteOnlyMapped['Post'] = orm.relationship(back_populates="author")
 
 
+    # Note: set_password and check_password are part of the domain layer not the data layer
+    # It is okey to have them here for simple apps, but for more complex hashing strategies
+    # or if you want to change the hashing strategy later, consider moving them to a service layer
     def set_password(self, password: str) -> None:
         # Added check to avoid empty passwords also to make linter happy
         # This is not in the book
@@ -37,6 +38,7 @@ class User(UserMixin, db.Model):
             raise ValueError("Password cannot be empty")
         self.password_hash = generate_password_hash(password)
 
+    # Same here about the domain layer
     def check_password(self, password: Optional[str]) -> bool:
         # If password_hash is None, return False
         # this differs from the book but is safer, and avoids potential errors
@@ -67,7 +69,7 @@ class Post(db.Model):
                                     index=True,
                                     nullable=False
                                     )
-    author: orm.Mapped[User] = orm.relationship( back_populates='posts' )
+    author: orm.Mapped[ User ] = orm.relationship( back_populates='posts' )
                                     
 
     def __repr__(self) -> str:

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- User profile section: avatar + username + about me + last seen -->
+<table>
+  <tr valign="top">
+    <td><img src="{{ user.avatar(128) }}"></td>
+    <td>
+      <h1>User: {{ user.username }}</h1>
+
+      {% if user.about_me %}
+        <p>{{ user.about_me }}</p>
+      {% endif %}
+
+      <!-- Show last seen only if available -->
+      {% if user.last_seen %}
+        <p>Last seen on: {{ user.last_seen }}</p>
+      {% endif %}
+
+      <!-- Only show edit link if this is the logged-in user's own profile -->
+      {% if user == current_user %}
+        <p><a href="{{ url_for('edit_profile') }}">Edit your profile</a></p>
+      {% endif %}
+    </td>
+  </tr>
+</table>
+
+<!-- Divider between profile info and user posts -->
+<hr>
+
+{% for post in posts %}
+  <!-- Include the post template for each post -->
+  {% include "_post.html" %}
+{% endfor %}
+
+{% endblock %}

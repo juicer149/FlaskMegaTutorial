@@ -1,29 +1,43 @@
+<!-- app/templates/login.html -->
 {% extends "base.html" %}
 
 {% block content %}
   <h1>Sign In</h1>
+  <!-- Login form -->
   <form action="" method="post" novalidate>
+    <!-- CSRF protection and hidden fields -->
     {{ form.hidden_tag() }}
 
+    <!-- Username field with validation errors -->
     <p>
       {{ form.username.label }}<br>
       {{ form.username(size=32) }}<br>
       {% for error in form.username.errors %}
-      <span style="color: red;">[{{ error }}]</span>
+        <span style="color: red;">[{{ error }}]</span>
       {% endfor %}
     </p>
 
+    <!-- Password field with validation errors -->
     <p>
       {{ form.password.label }}<br>
       {{ form.password(size=32) }}<br>
       {% for error in form.password.errors %}
-      <span style="color: red;">[{{ error }}]</span>
+        <span style="color: red;">[{{ error }}]</span>
       {% endfor %}
     </p>
 
+    <!-- Remember me checkbox -->
     <p>{{ form.remember_me() }} {{ form.remember_me.label }}</p>
-    <p>{{ form.submit() }}</p>
 
+    <!-- Submit button -->
+    <p>{{ form.submit() }}</p>
   </form>
-  <p>New user? <a href="{{ url_for('register', next=request.args.get('next')) }}">Click here to register</a></p>
+
+  <!-- Link to registration page -->
+  <p>
+    New user? 
+    <a href="{{ url_for('register', next=request.args.get('next')) }}">
+      Click here to register
+    </a>
+  </p>
 {% endblock %}

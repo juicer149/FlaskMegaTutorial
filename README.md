@@ -252,3 +252,56 @@ The web layer should only translate requests into domain objects, and the ORM sh
 That way, the domain is portable, testable, and independent of frameworks.
 
 In future projects, I want to experiment with replacing WTForms entirely using Pydantic or dataclass-based factories, keeping the Flask layer thin and pushing invariants into the domain.
+
+#### 7.
+Implemented an *Edit Profile* feature.  
+I created a new route `/edit_profile` protected with `@login_required` and a corresponding `EditProfileForm` in `forms.py`.  
+This form allows the user to edit their own profile details such as `about_me` (and optionally `username`, if I want to support renaming).  
+
+Key insights:
+- Flask-WTF automatically handles validation and CSRF protection, so the form feels native in Flask.
+- By pre-populating the form with `form = EditProfileForm(obj=current_user)` or manually setting fields on GET, I can avoid the "field required" error when opening the page.
+- From a design perspective, I realized that allowing username changes is optional and depends on the product: some apps (e.g. Instagram) allow it, others (e.g. GitHub) treat username as immutable.  
+
+---
+
+#### 8.
+Discovered **Jinja sub-templates**.  
+Instead of duplicating the HTML for displaying posts in both `user.html` and `index.html`, I factored out the repeated markup into `_post.html` and used `{% include "_post.html" %}`.  
+
+Key insights:
+- This keeps templates DRY (Don’t Repeat Yourself).
+- If I later change the post layout, I only need to update `_post.html`, and the change propagates to all views.  
+- Sub-templates are lightweight compared to macros and a perfect fit for repeated UI fragments.
+
+---
+
+#### 9.
+Experimented with user activity indicators.  
+Using the `last_seen` field updated via `@app.before_request`, I displayed “Last seen on …” in the profile page.  
+Originally I attempted to use a `timeago` filter, but Jinja has no such built-in.  
+
+Solutions:
+- Use Flask-Moment (tutorial approach) for rich time formatting in the browser.
+- Or define my own custom Jinja filter in Python for simple “x minutes ago” strings.
+- Or just use `strftime()` directly to show a formatted datetime.  
+
+Key insight:
+Flask’s template layer is minimal by design. Extra formatting often belongs in either:
+- A custom filter (Python → Jinja), or
+- A JS library (like Moment.js) for better UX.
+
+---
+
+#### 10.
+Reflections on project structure.  
+By now I’ve seen how each file plays a distinct role in the Flask MVC pattern:
+- **routes.py** = Controllers (entry points for HTTP requests).
+- **forms.py** = Input validation layer (UI forms, WTForms).
+- **models.py** = ORM layer (SQLAlchemy models, persistence logic).
+- **templates/** = Views (HTML with Jinja).  
+
+I also added a docstring to each file explaining its purpose and how to think about that part of the app.
+
+This mental model helps me keep responsibilities clear and avoid mixing concerns.  
+Long-term, I want to push more business rules into a **domain layer** (dataclasses or Pydantic), keeping Flask as a thin adapter.

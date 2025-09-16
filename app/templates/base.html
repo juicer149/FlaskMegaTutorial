@@ -1,40 +1,46 @@
 <!doctype html>
+<!-- app/templates/base.html -->
+<!doctype html>
 <html>
   <head>
+    <!-- Page title: dynamic if provided, fallback otherwise -->
     {% if title %}
-
-    <title>{{ title }} - Myblog</title>
+      <title>{{ title }} - Myblog</title>
     {% else %}
-    <title>Welcome to Myblog</title>
-
+      <title>Welcome to Myblog</title>
     {% endif %}
-
   </head>
+
   <body>
-      <div>
+    <!-- Navigation bar -->
+    <div>
+      Myblog: 
+      <a href="{{ url_for('index') }}">Home</a>
 
-	Myblog: 
-	<a href="{{ url_for('index') }}">Home</a>
-	{% if current_user.is_anonymous %}
-	<a href="{{ url_for('login') }}">Login</a>
-	{% else %}
-	<a href="{{ url_for('logout') }}">Logout</a>
-	{% endif %}
-	
-      </div>
-
-      <hr>
-      {% with messages = get_flashed_messages() %}
-      {% if messages %}
-      <ul>
-
-        {% for message in messages %}
-	<li>{{ message }}</li>
-	{% endfor %}
-
-      </ul>
+      {% if current_user.is_anonymous %}
+        <!-- Links for anonymous users -->
+        <a href="{{ url_for('login') }}">Login</a>
+      {% else %}
+        <!-- Links for logged-in users -->
+        <a href="{{ url_for('user', username=current_user.username) }}">Profile</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
       {% endif %}
-      {% endwith %}
-      {% block content %}{% endblock %}
-    </body>
+    </div>
+
+    <hr>
+
+    <!-- Flash messages (for success, error, info notifications) -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+          {% for message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Page-specific content -->
+    {% block content %}{% endblock %}
+  </body>
 </html>

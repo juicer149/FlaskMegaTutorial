@@ -30,9 +30,10 @@ class User(UserMixin, db.Model):
                                     primary_key=True, autoincrement=True
                                     ) 
     username: orm.Mapped[str] = orm.mapped_column(
-                                    sa.String(64), index=True, unique=True,
-                                    nullable=False
+                                    sa.String(64, collation="NOCASE"), index=True, unique=True,
+                                    nullable=False, 
                                     )
+                                    
     email: orm.Mapped[str] = orm.mapped_column(
                                     sa.String(120), index=True, unique=True
                                     )

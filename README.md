@@ -253,7 +253,7 @@ That way, the domain is portable, testable, and independent of frameworks.
 
 In future projects, I want to experiment with replacing WTForms entirely using Pydantic or dataclass-based factories, keeping the Flask layer thin and pushing invariants into the domain.
 
-#### 7.
+#### 9.
 Implemented an *Edit Profile* feature.  
 I created a new route `/edit_profile` protected with `@login_required` and a corresponding `EditProfileForm` in `forms.py`.  
 This form allows the user to edit their own profile details such as `about_me` (and optionally `username`, if I want to support renaming).  
@@ -265,7 +265,7 @@ Key insights:
 
 ---
 
-#### 8.
+#### 10.
 Discovered **Jinja sub-templates**.  
 Instead of duplicating the HTML for displaying posts in both `user.html` and `index.html`, I factored out the repeated markup into `_post.html` and used `{% include "_post.html" %}`.  
 
@@ -276,7 +276,7 @@ Key insights:
 
 ---
 
-#### 9.
+#### 11.
 Experimented with user activity indicators.  
 Using the `last_seen` field updated via `@app.before_request`, I displayed “Last seen on …” in the profile page.  
 Originally I attempted to use a `timeago` filter, but Jinja has no such built-in.  
@@ -293,7 +293,7 @@ Flask’s template layer is minimal by design. Extra formatting often belongs in
 
 ---
 
-#### 10.
+#### 12.
 Reflections on project structure.  
 By now I’ve seen how each file plays a distinct role in the Flask MVC pattern:
 - **routes.py** = Controllers (entry points for HTTP requests).
@@ -305,3 +305,72 @@ I also added a docstring to each file explaining its purpose and how to think ab
 
 This mental model helps me keep responsibilities clear and avoid mixing concerns.  
 Long-term, I want to push more business rules into a **domain layer** (dataclasses or Pydantic), keeping Flask as a thin adapter.
+
+---
+
+Here’s a polished English version of your **new learning notes** from today. I rewrote them so they’re clear, structured, and in the same style as your existing README notes:
+
+---
+
+#### 11. Error handling in Flask
+
+Flask provides an `@app.errorhandler(<status_code>)` decorator to register custom error pages.
+I initially struggled to get my custom `404.html` and `500.html` templates to render — until I realized that **debug mode overrides them**.
+
+* With `FLASK_DEBUG=1`, Flask shows its interactive debugger.
+* With `FLASK_DEBUG=0` (production mode), Flask uses my custom error handlers.
+
+Key insight: Debug mode is for development, not for testing production error handling.
+
+---
+
+#### 12. Email error reporting with `aiosmtpd`
+
+Instead of sending real emails, I used the `aiosmtpd` package to spin up a local debugging SMTP server.
+This way, error emails are "sent" but just printed to the console. It’s a safe way to test logging without touching a real mail provider.
+
+I extended my `.env` with mail configuration (server, port, TLS, credentials) and updated `config.py` to read multiple admin emails from a single environment variable.
+
+---
+
+#### 13. Logging with rotating file handlers
+
+I set up `RotatingFileHandler` in `app/__init__.py` to log errors into a `logs/` directory.
+This keeps log files small, automatically rotates them, and applies a custom formatter for clarity.
+
+Lesson learned: **Good logging is as important as error handling** — it helps detect and debug issues long before users report them.
+
+---
+
+#### 14. Fixing duplicate usernames
+
+While testing `/edit_profile`, I discovered a **UNIQUE constraint error** when trying to change a username to one that already existed.
+
+Fixes I applied:
+
+* Added `db.session.rollback()` in my error handler to clean up broken transactions.
+* Wrote a custom `validate_username()` method in `EditProfileForm` that disallows renaming to an existing username.
+* Improved validation to treat `John` and `john` as equal (case-insensitive).
+
+To enforce this at the database level, I updated the model:
+
+```python
+username = orm.mapped_column(sa.String(64, collation="NOCASE"), ...)
+```
+
+The trick was that **collation must be applied at the type level (`sa.String`)**, not as an argument to `Column`.
+
+---
+
+#### 15. Database resets in development
+
+My experiments corrupted the database several times. Instead of manually deleting files and migrations, I automated this with a `make reset-db` target:
+
+1. Remove `migrations/`, `instance/`, and `app.db`.
+2. Re-initialize Alembic.
+3. Run a fresh migration and upgrade.
+
+This ensures I can always reset to a clean slate in development.
+Key insight: For dev work, *resetting is often faster than debugging migration conflicts*.
+
+---

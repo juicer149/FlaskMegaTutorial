@@ -69,7 +69,14 @@ class EditProfileForm(FlaskForm):
         self.original_username = original_username
 
     def validate_username(self, username):
-        """ not allow changing to an existing username or diffrent case, e.g. John == john """
+        """
+        Validate username to not allow changing to an existing username or 
+        diffrent case, e.g. John == john.
+        1. If username is unchanged (case-insensitive), allow it.
+        2. If username is changed, check if it already exists in the database.
+           If it does, raise a ValidationError.
+        3. Otherwise, allow it.
+        """
         if username.data.lower() != self.original_username.lower():
             user = db.session.scalar(
                     sa.select(User).where(

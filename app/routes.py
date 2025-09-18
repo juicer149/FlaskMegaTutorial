@@ -18,6 +18,7 @@ Example:
 from flask import render_template, flash, redirect, url_for, request
 from flask_login import current_user, login_user, logout_user, login_required
 import sqlalchemy as sa
+from sqlalchemy.exc import IntegrityError
 from urllib.parse import urlsplit
 from datetime import datetime, timezone
 
@@ -148,11 +149,15 @@ def edit_profile():
         new_username = form.username.data.strip() # type: ignore
         current_user.username_canonical = new_username.lower()
         current_user.username_display = new_username
-
-        # about_me is optional, so set to None if empty
         current_user.about_me = form.about_me.data if form.about_me.data else None
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Username already taken, please choose a different one.')
+            return render_template('edit_profile.html', title='Edit Profile', form=form), 400
+
         flash('Your changes have been saved.')
         return redirect(url_for('edit_profile'))
 

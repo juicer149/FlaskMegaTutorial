@@ -1,28 +1,26 @@
 """
-Flask-WTF/WTForms objects.
+Flask-WTF forms.
 
 Responsibilities:
-    - Represent user input from the web layer (e.g. login, registration).
-    - Perform basic UI-level validation (not domain logic).
-        - e.g. "Field is required", "Email has correct format", "Passwords match".
+    - Collect and validate raw input from HTML forms at the UI level.
     - Provide CSRF protection automatically.
+    - Enforce only presentation-level rules:
+        * Field presence (required fields)
+        * Basic formats (email shape, min/max lengths, password match)
 
-Think of forms as a filter between the web layer and the domain layer.
+Non-responsibilities:
+    - Database queries (e.g. uniqueness checks)
+    - Domain/business rules (e.g. username policies, password strength)
+    - Persistence logic
 
-In the long run:
-    - In a Domain-Driven Design (DDD) or service-layer approach,
-      forms may be replaced by:
-        - Pydantic models (API/CLI input validation).
-        - Marshmallow schemas (serialization + validation).
-        - Dataclasses with validation logic (factories, __post_init__).
-    - In that case, the web layer becomes only a thin adapter to the domain layer.
+In this design, forms are a thin adapter between the web layer (HTML) and 
+the domain layer (Pydantic DTOs, services, repositories). More complex 
+validation and domain logic is handled outside the forms.
 """
+
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, ValidationError, Email, EqualTo, Length
-import sqlalchemy as sa
-from app import db
-from app.models import User
+from wtforms.validators import DataRequired, Email, EqualTo, Length
 
 
 class LoginForm(FlaskForm):
@@ -40,49 +38,8 @@ class RegistrationForm(FlaskForm):
         'Repeat Password', validators=[DataRequired(), EqualTo('password')])
     submit = SubmitField('Register')
 
-    def validate_username(self, username):
-        user = db.session.scalar(
-                sa.select(User).where(
-                    User.username == username.data
-                    )
-                )
-        if user is not None:
-            raise ValidationError('Please use a different username.')
-
-    def validate_email(self, email):
-        user = db.session.scalar(
-                sa.select(User).where(
-                    User.email == email.data
-                    )
-                )
-        if user is not None:
-            raise ValidationError('Please use a different email address.')
-
 
 class EditProfileForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
     about_me = TextAreaField('About me', validators=[Length(min=0, max=140)])
     submit = SubmitField('Submit')
-
-    def __init__(self, original_username, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.original_username = original_username
-
-    def validate_username(self, username):
-        """
-        Validate username to not allow changing to an existing username or 
-        diffrent case, e.g. John == john.
-        1. If username is unchanged (case-insensitive), allow it.
-        2. If username is changed, check if it already exists in the database.
-           If it does, raise a ValidationError.
-        3. Otherwise, allow it.
-        """
-        if username.data.lower() != self.original_username.lower():
-            user = db.session.scalar(
-                    sa.select(User).where(
-                        sa.func.lower(User.username) == username.data.lower()
-                        )
-                    )
-            if user is not None:
-                raise ValidationError('Please use a different username.')
-

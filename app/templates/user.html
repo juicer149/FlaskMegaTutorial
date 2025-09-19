@@ -5,33 +5,59 @@
 <!-- User profile section: avatar + username + about me + last seen -->
 <table>
   <tr valign="top">
+    <!-- Avatar generated based on email_canonical -->
     <td><img src="{{ user.avatar(128) }}"></td>
     <td>
+      <!-- username_display = "pretty" version of the username -->
       <h1>User: {{ user.username_display }}</h1>
 
+      <!-- Show "about me" section if the user has filled it -->
       {% if user.about_me %}
         <p>{{ user.about_me }}</p>
       {% endif %}
 
-      <!-- Show last seen only if available -->
+      <!-- Show last seen timestamp if available -->
       {% if user.last_seen %}
         <p>Last seen on: {{ user.last_seen }}</p>
       {% endif %}
+      
+      <!-- followers_count & following_count are @property in the User model -->
+      <p>{{ user.followers_count }} followers, {{ user.following_count }} following</p>
 
-      <!-- Only show edit link if this is the logged-in user's own profile -->
       {% if user == current_user %}
+        <!-- If this is the logged-in user's own profile -->
         <p><a href="{{ url_for('edit_profile') }}">Edit your profile</a></p>
+
+      {% elif not current_user.is_following(user) %}
+        <!-- If viewing another profile: show "Follow" button if not already following -->
+        <p>
+          <!-- IMPORTANT: use username_canonical (unique & lowercase) for URLs -->
+          <form action="{{ url_for('follow', username=user.username_canonical) }}" method="post">
+            {{ form.hidden_tag() }} <!-- CSRF protection -->
+            {{ form.submit(value="Follow") }}
+          </form>
+        </p>
+
+      {% else %}
+        <!-- If already following: show "Unfollow" button -->
+        <p>
+          <form action="{{ url_for('unfollow', username=user.username_canonical) }}" method="post">
+            {{ form.hidden_tag() }} <!-- CSRF protection -->
+            {{ form.submit(value="Unfollow") }}
+          </form>
+        </p>
       {% endif %}
     </td>
   </tr>
 </table>
 
-<!-- Divider between profile info and user posts -->
+<!-- Divider between profile info and user's posts -->
 <hr>
 
+<!-- Loop over user's posts and include the _post.html template for each -->
 {% for post in posts %}
-  <!-- Include the post template for each post -->
   {% include "_post.html" %}
 {% endfor %}
 
 {% endblock %}
+

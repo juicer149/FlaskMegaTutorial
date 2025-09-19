@@ -47,6 +47,13 @@ Each numbered section links directly to the detailed notes below.
 
 20. [**Extracted model helpers into reusable modules**](#20-extracted-model-helpers-into-reusable-modules) – Moved password hashing, password verification, and avatar generation into `helpers/`.
 
+21. [**Many-to-many relationships**](#21-many-to-many-relationships-core-vs-orm) – Deciding between Core and ORM for association tables.  
+
+22. [**Check constraints in association tables**](#22-check-constraints-and-idempotency-in-followers-table) – Preventing self-follows and thoughts on idempotency.  
+
+23. [**Using @property for model helpers**](#23-using-property-for-cleaner-model-apis) – Cleaner access for counts and simple derived values.  
+
+
 ---
 
 
@@ -507,4 +514,67 @@ The model exposes a clean API (`user.set_password(...)`, `user.check_password(..
 
 ---
 
+#### 21. Many-to-many relationships (Core vs ORM)
 
+When implementing the `followers` table (user ↔ user), I noticed Miguel used **SQLAlchemy Core** for the association table instead of ORM.  
+
+**Key insight:**  
+- If the association table is a *pure link* (only two FKs, no extra data), it can be defined with **Core** (`sa.Table`).  
+- If the association table contains *extra columns* (e.g. timestamp of follow), then it becomes a full model with its own meaning and should be defined with **ORM** (`db.Model`).  
+
+This clarified an important design principle:  
+- **Pure association = Core** (lightweight, just linking).  
+- **Association + attributes = ORM** (because it has real data beyond the link).  
+
+---
+
+#### 22. Check constraints and idempotency in followers table
+
+I added a **check constraint** to the `followers` association table to prevent a user from following themselves:
+
+```python
+sa.CheckConstraint('follower_id != followed_id', name='no_self_follow')
+````
+
+I also considered whether I needed an explicit safeguard for **idempotency** (preventing duplicate follows).
+After reflection, I realized it’s not necessary:
+
+* The **primary key constraint** on `(follower_id, followed_id)` already ensures uniqueness.
+* If I wanted multiple follows (non-idempotent behavior), I would need to add a surrogate primary key (like an auto-increment `id`), but then it would no longer be a pure association table — it would be an entity of its own.
+
+**Key insight:**
+Constraints at the database level are simple, powerful, and ensure invariants without extra Python code.
+
+---
+
+#### 23. Using @property for cleaner model APIs
+
+I deviated from the tutorial by making some helper functions into `@property` methods on the `User` model.
+
+Example:
+
+```python
+@property
+def followers_count(self) -> int:
+    ...
+```
+
+This allows me to write:
+
+```jinja2
+<p>{{ user.followers_count }} followers</p>
+```
+
+instead of:
+
+```jinja2
+<p>{{ user.followers_count() }} followers</p>
+```
+
+**Why it matters:**
+
+* The code reads more cleanly in both Python and Jinja templates.
+* `@property` communicates intent: these are **derived attributes**, not actions with side effects.
+* It’s especially useful for read-only values like counts or precomputed relationships.
+
+---

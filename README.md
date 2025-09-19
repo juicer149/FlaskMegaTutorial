@@ -31,3 +31,4 @@ I will update this README as I progress through each tutorial part and deepen my
 
 ---
 
+See NOTES.md for what i have learned and done.

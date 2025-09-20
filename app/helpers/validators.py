@@ -3,7 +3,9 @@ from wtforms.validators import ValidationError
 from app import db
 
 
-def validate_unique(field, value_field, original: str | None = None, msg: str = "Value must be unique"):
+def validate_unique(
+    field, value_field, original: str | None = None, msg: str = "Value must be unique"
+):
     """
     Generic uniqueness validator.
 
@@ -18,9 +20,6 @@ def validate_unique(field, value_field, original: str | None = None, msg: str = 
     if original and canonical == original.lower():
         return  # unchanged → ok
 
-    exists = db.session.scalar(
-        sa.select(value_field).where(value_field == canonical)
-    )
+    exists = db.session.scalar(sa.select(value_field).where(value_field == canonical))
     if exists:
         raise ValidationError(msg)
-

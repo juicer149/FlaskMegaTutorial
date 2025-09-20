@@ -3,6 +3,7 @@ from urllib.parse import urlsplit
 from flask import request, url_for
 from typing import Union
 
+
 def get_next_page(default: Union[str, tuple] = "index") -> str:
     """
     Returns a safe redirect target from ?next= query parameter.
@@ -24,4 +25,3 @@ def get_next_page(default: Union[str, tuple] = "index") -> str:
         else:
             next_page = url_for(default)
     return next_page
-

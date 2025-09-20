@@ -9,6 +9,7 @@ Responsibilities:
 
 Think of forms as a filter between the web layer and the domain layer.
 """
+
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
@@ -18,39 +19,36 @@ from app.helpers.validators import validate_unique
 
 
 class LoginForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    remember_me = BooleanField('Remember Me')
-    submit = SubmitField('Sign In')
+    username = StringField("Username", validators=[DataRequired()])
+    password = PasswordField("Password", validators=[DataRequired()])
+    remember_me = BooleanField("Remember Me")
+    submit = SubmitField("Sign In")
 
 
 class RegistrationForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired()])
+    username = StringField("Username", validators=[DataRequired()])
+    email = StringField("Email", validators=[DataRequired(), Email()])
+    password = PasswordField("Password", validators=[DataRequired()])
     password2 = PasswordField(
-        'Repeat Password', validators=[DataRequired(), EqualTo('password')])
-    submit = SubmitField('Register')
+        "Repeat Password", validators=[DataRequired(), EqualTo("password")]
+    )
+    submit = SubmitField("Register")
 
     def validate_username(self, username):
-        return validate_unique( 
-            username, 
-            User.username_canonical, 
-            msg = 'Please use a different username.'
+        return validate_unique(
+            username, User.username_canonical, msg="Please use a different username."
         )
 
     def validate_email(self, email):
-        return validate_unique( 
-            email, 
-            User.email_canonical, 
-            msg = 'Please use a different email address.'
+        return validate_unique(
+            email, User.email_canonical, msg="Please use a different email address."
         )
 
 
 class EditProfileForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    about_me = TextAreaField('About me', validators=[Length(min=0, max=140)])
-    submit = SubmitField('Submit')
+    username = StringField("Username", validators=[DataRequired()])
+    about_me = TextAreaField("About me", validators=[Length(min=0, max=140)])
+    submit = SubmitField("Submit")
 
     def __init__(self, original_username, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -60,9 +58,10 @@ class EditProfileForm(FlaskForm):
         return validate_unique(
             username,
             User.username_canonical,
-            original = self.original_username,
-            msg = 'Please use a different username.',
+            original=self.original_username,
+            msg="Please use a different username.",
         )
 
+
 class EmptyForm(FlaskForm):
-    submit = SubmitField('Submit')
+    submit = SubmitField("Submit")

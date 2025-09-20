@@ -18,26 +18,24 @@ class User(UserMixin, db.Model):
     __tablename__ = "users"
 
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True, autoincrement=True)
-
     username_canonical: orm.Mapped[str] = orm.mapped_column(
         sa.String(64), index=True, unique=True, nullable=False
     )
     username_display: orm.Mapped[str] = orm.mapped_column(sa.String(64), nullable=False)
-
     email_canonical: orm.Mapped[str] = orm.mapped_column(
         sa.String(120), index=True, unique=True, nullable=False
     )
     email_display: orm.Mapped[str] = orm.mapped_column(sa.String(120), nullable=False)
-
-    password_hash: orm.Mapped[Optional[str]] = orm.mapped_column(sa.String(256), nullable=True)
-
-    posts: orm.WriteOnlyMapped["Post"] = orm.relationship(back_populates="author")
-
+    password_hash: orm.Mapped[Optional[str]] = orm.mapped_column(
+        sa.String(256), nullable=True
+    )
+    posts: orm.WriteOnlyMapped["Post"] = orm.relationship(  # type: ignore[name-defined]
+        back_populates="author"
+    )
     about_me: orm.Mapped[Optional[str]] = orm.mapped_column(sa.String(140))
     last_seen: orm.Mapped[Optional[datetime]] = orm.mapped_column(
         default=lambda: datetime.now(timezone.utc)
     )
-
     following: orm.WriteOnlyMapped["User"] = orm.relationship(
         secondary=followers,
         primaryjoin=(followers.c.follower_id == id),
@@ -76,9 +74,7 @@ class User(UserMixin, db.Model):
             self.following.remove(user)
 
     def is_following(self, user: "User") -> bool:
-        query = sa.select(
-            sa.exists(self.following.select().where(User.id == user.id))
-        )
+        query = sa.select(sa.exists(self.following.select().where(User.id == user.id)))
         return bool(db.session.scalar(query))
 
     def _relationship_count(self, relationship) -> int:
@@ -98,6 +94,7 @@ class User(UserMixin, db.Model):
     def following_posts(self):
         # local import to avoid circular import
         from .post import Post
+
         Author = orm.aliased(User)
         Follower = orm.aliased(User)
 
@@ -106,7 +103,7 @@ class User(UserMixin, db.Model):
             .join(Post.author.of_type(Author))
             .join(Author.followers.of_type(Follower), isouter=True)
             .where(sa.or_(Follower.id == self.id, Author.id == self.id))
-            #.group_by(Post)
+            # .group_by(Post)
             .distinct()
             .order_by(Post.timestamp.desc())
         )
@@ -119,4 +116,3 @@ class User(UserMixin, db.Model):
 @login.user_loader
 def load_user(id: str) -> Optional["User"]:
     return db.session.get(User, int(id))
-

@@ -14,4 +14,3 @@ followers = sa.Table(
     # Prevent a user from following themselves
     sa.CheckConstraint("follower_id != followed_id", name="no_self_follow"),
 )
-

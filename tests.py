@@ -4,14 +4,15 @@ os.environ["DATABASE_URL"] = "sqlite://"
 
 from datetime import datetime, timezone, timedelta  # noqa: E402
 import unittest
+import sqlalchemy as sa
 from app import app, db  # noqa: F402
 from app.models import User, Post  # noqa: F402
-
 
 class UserModelCase(unittest.TestCase):
     def setUp(self):
         self.app_context = app.app_context()
         self.app_context.push()
+        app.config["POSTS_PER_PAGE"] = 3  # test settings for pagination
         db.create_all()
 
     def tearDown(self):
@@ -104,6 +105,55 @@ class UserModelCase(unittest.TestCase):
         self.assertEqual(f2, [p2, p3])
         self.assertEqual(f3, [p3, p4])
         self.assertEqual(f4, [p4])
+
+    def test_pagination(self):
+        u = User(username="Alice", email="alice@example.com")
+        db.session.add(u)
+        db.session.commit()
+
+        # skapa 10 poster
+        now = datetime.now(timezone.utc)
+        for i in range(10):
+            p = Post(body=f"post {i}", author=u,
+                     timestamp=now + timedelta(seconds=i))
+            db.session.add(p)
+        db.session.commit()
+
+        # kör en query sorterad nyast först
+        query = sa.select(Post).order_by(Post.timestamp.desc())
+
+        # hämta första sidan
+        page1 = db.paginate(
+            query,
+            page=1,
+            per_page=app.config["POSTS_PER_PAGE"],
+            error_out=False,
+        )
+        self.assertEqual(len(page1.items), app.config["POSTS_PER_PAGE"])
+        self.assertTrue(page1.has_next)
+        self.assertFalse(page1.has_prev)
+
+        # hämta andra sidan
+        page2 = db.paginate(
+            query,
+            page=2,
+            per_page=app.config["POSTS_PER_PAGE"],
+            error_out=False,
+        )
+        self.assertEqual(len(page2.items), app.config["POSTS_PER_PAGE"])
+        self.assertTrue(page2.has_next)
+        self.assertTrue(page2.has_prev)
+
+        # sista sidan (ska ha 1 post kvar → 10 % 3 = 1)
+        page4 = db.paginate(
+            query,
+            page=4,
+            per_page=app.config["POSTS_PER_PAGE"],
+            error_out=False,
+        )
+        self.assertEqual(len(page4.items), 1)
+        self.assertFalse(page4.has_next)
+        self.assertTrue(page4.has_prev)
 
 
 if __name__ == "__main__":

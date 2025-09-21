@@ -30,3 +30,6 @@ class Config:
 
     # Admin emails (comma separated list in .env)
     ADMINS = [email.strip() for email in os.environ.get("ADMINS", "").split(",") if email]
+
+    # Pagination
+    POSTS_PER_PAGE = int(os.environ.get("POSTS_PER_PAGE", 3))

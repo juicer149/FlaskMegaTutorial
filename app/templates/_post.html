@@ -5,9 +5,11 @@
     <!-- Small avatar of the post's author -->
     <td><img src="{{ post.author.avatar(36) }}"></td>
     <td>
-      <!-- Post author name and body -->
-      {{ post.author.username_display }} says:<br>
-      {{ post.body }}
+      <!-- Link to the author's profile -->
+      <a href="{{ url_for('user', username=post.author.username) }}">
+        {{ post.author.username_display }}
+      </a>
+      says:<br>{{ post.body }}
     </td> 
   </tr>
 </table>

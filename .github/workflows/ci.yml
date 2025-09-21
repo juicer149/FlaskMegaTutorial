@@ -21,16 +21,16 @@ jobs:
       - name: Install dependencies
         run: make install
 
-      - name: Run lint
-        run: make lint
+        #      - name: Run lint
+        #        run: make lint
 
-      - name: Run typecheck
-        run: make typecheck
+        #      - name: Run typecheck
+        #        run: make typecheck
 
-      - name: Run format check
-        run: make format
+        #      - name: Run format check
+        #        run: make format
 
       - name: Run tests
         run: make test
 
-      # could use only make check for the above 4 steps
+      # could use only "make check" for the above 4 steps

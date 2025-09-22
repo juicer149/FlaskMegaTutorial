@@ -53,6 +53,9 @@ Each numbered section links directly to the detailed notes below.
 
 23. [**Using @property for model helpers**](#23-using-property-for-cleaner-model-apis) – Cleaner access for counts and simple derived values.  
 
+24. [**Password hashing benchmarks**](#24-password-hashing-benchmarks-and-calibration) – Running calibration and profiling of PBKDF2, bcrypt, and Argon2id.
+
+25. [**Migrating to Argon2id with pepper**](#25-migrating-to-argon2id-with-pepper) – Switching from Werkzeug’s PBKDF2 to Argon2id with environment-based configuration.
 
 ---
 
@@ -576,5 +579,55 @@ instead of:
 * The code reads more cleanly in both Python and Jinja templates.
 * `@property` communicates intent: these are **derived attributes**, not actions with side effects.
 * It’s especially useful for read-only values like counts or precomputed relationships.
+
+---
+
+
+#### 24. Password hashing benchmarks and calibration
+
+I wanted to explore password hashing algorithms beyond PBKDF2 (Werkzeug default).
+
+I built **two benchmarking scripts**:
+
+* `benchmarks/run_configs.py` → runs fixed “profiles” (Small device, Balanced, Production, etc.)
+* `benchmarks/run_configs.py --calibrate` → dynamically adjusts parameters until hash time ≈ 250ms
+
+**Results on my machine:**
+
+* **PBKDF2** → \~552k iterations for \~280ms.
+* **bcrypt** → 13 rounds gave \~410ms.
+* **Argon2id** → tunable across three dimensions (`time_cost`, `memory_cost`, `parallelism`).
+
+I tested profiles like *Small device (fast, low memory)*, *Balanced (64MB)*, *Production (128MB)*, *High security (parallelism=3)*, and *Memory-heavy (256MB)*.
+
+**Key insight:**
+
+* Parallelism *reduced runtime* on my CPU while still raising attacker cost.
+* Memory-heavy configs are secure but risk DoS if misused.
+* The sweet spot on my hardware was **Argon2id (time\_cost=10, memory=128MB, parallelism=3)** at \~320ms.
+
+This confirmed Argon2id is the **modern best-practice choice**, and benchmarking ensures configs match the hardware budget.
+
+---
+
+#### 25. Migrating to Argon2id with pepper
+
+The tutorial uses Werkzeug’s `generate_password_hash` (PBKDF2).
+I deviated and switched to **Argon2id**, adding both **salt** (automatic) and **pepper** (from `.env`).
+
+Implementation:
+
+* Added environment variables for **time\_cost, memory\_cost, parallelism, hash\_len, salt\_len, pepper**.
+* Built `app/helpers/security.py` with `_get_hasher()` and `_with_pepper()`.
+* Updated `User.set_password` and `User.check_password` to delegate to Argon2 helpers.
+
+Because my project is new, I could just **reset the database** and start with Argon2id directly.
+In a production system, I’d need to **support legacy hashes** until all users logged in once and were rehashed.
+
+**Key insight:**
+
+* Using pepper raises security significantly (protects even if DB is leaked).
+* Centralizing password hashing logic in `helpers/security.py` makes it easier to swap algorithms in the future.
+* Environment-driven config gives flexibility: I can tune parameters per environment (dev, staging, production, Raspberry Pi, etc.).
 
 ---

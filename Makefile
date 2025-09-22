@@ -45,6 +45,17 @@ clean:
 	find . -type f -name '*.pyc' -delete
 	find . -type d -name '__pycache__' -exec rm -r {} +
 
+# Run password hashing benchmarks (fixed configs)
+bench-profiles:
+	$(PYTHON) -m benchmarks.run_configs
+
+# Run password hashing benchmarks (auto-calibration)
+bench-calibrate:
+	$(PYTHON) -m benchmarks.run_configs --calibrate
+
+# Run all benchmarks
+bench-all: bench-profiles bench-calibrate
+
 # Reset DB (dangerous!)
 reset-db:
 	@read -p "This will do a total reset of the database. Do you wish to continue (y/n) " ans && [ $${ans} = y ]

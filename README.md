@@ -2,13 +2,13 @@
 
 This project follows [Miguel Grinberg's Flask Mega Tutorial](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world) and serves as my structured introduction to **Flask** and modern **full-stack web development**.
 
-> ⚠️ This is a **learning project**. It is not intended for production use, but I try to structure it as if it were – with version control, testing, CI, and code quality checks.
+> This is a **learning project**. It is not intended for production use, but I try to structure it as if it were – with version control, testing, CI, and code quality checks.
 
 A huge thanks to Miguel Grinberg for providing such a comprehensive and approachable resource.
 
 ---
 
-## 🎯 Purpose
+## Purpose
 
 Until recently, most of my programming work involved “raw code” — writing scripts in `nvim`, running them in the terminal, and querying data with SQL (MySQL).
 Frameworks, templating engines, ORMs, and deployment tools are **new territory** for me.
@@ -38,7 +38,7 @@ This project is my way of building solid knowledge in **modern Python web develo
 ```bash
 git clone https://github.com/juicer149/FlaskMegaTutorial.git
 cd FlaskMegaTutorial
-```
+````
 
 ### 2. Create and activate virtual environment
 
@@ -71,20 +71,45 @@ App will be available at [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
 ---
 
+## Password Hashing (Argon2id)
+
+This project uses **Argon2id** for password hashing, following [OWASP recommendations](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+Each hash includes a unique **salt** (generated automatically) and a global secret **pepper** (defined in `.env`).
+
+You can configure Argon2id parameters in `.env`:
+
+# Argon2id password hashing parameters
+ARGON2_TIME_COST=8
+ARGON2_MEMORY_COST=131072   # KiB (128 MB)
+ARGON2_PARALLELISM=2
+ARGON2_HASH_LENGTH=32
+ARGON2_SALT_LENGTH=16
+ARGON2_PEPPER=your-secret-pepper-here
+
+### Why Argon2id?
+
+* **Memory hardness** → defends against GPU and ASIC cracking.
+* **Configurable cost factors** → balance between security and performance.
+* **Pepper** → extra protection if the database is compromised.
+
+---
+
 ## Development Workflow
 
 Common commands are managed via the `Makefile`:
 
-| Command          | Description                                  |
-| ---------------- | -------------------------------------------- |
-| `make run`       | Run the Flask development server             |
-| `make install`   | Install dependencies from `requirements.txt` |
-| `make test`      | Run all unit tests (`unittest`)              |
-| `make lint`      | Run linting with `flake8`                    |
-| `make typecheck` | Run static type checking with `mypy`         |
-| `make format`    | Auto-format code with `black`                |
-| `make check`     | Run lint + typecheck + tests (CI mirror)     |
-| `make reset-db`  | Reset database and run initial migration     |
+| Command                | Description                                     |
+| ---------------------- | ----------------------------------------------- |
+| `make run`             | Run the Flask development server                |
+| `make install`         | Install dependencies from `requirements.txt`    |
+| `make test`            | Run all unit tests (`unittest`)                 |
+| `make lint`            | Run linting with `flake8`                       |
+| `make typecheck`       | Run static type checking with `mypy`            |
+| `make format`          | Auto-format code with `black`                   |
+| `make check`           | Run lint + typecheck + tests (CI mirror)        |
+| `make reset-db`        | Reset database and run initial migration        |
+| `make bench-profiles`  | Run password hashing benchmarks (fixed configs) |
+| `make bench-calibrate` | Calibrate hashing cost to \~250ms               |
 
 ---
 
@@ -120,6 +145,7 @@ This ensures that code is consistent and functional before merging.
 │   ├── models/        # SQLAlchemy models (User, Post, Followers)
 │   ├── routes.py      # Flask routes (controllers)
 │   └── templates/     # Jinja2 templates (HTML)
+├── benchmarks/        # Password hashing benchmarks & calibration
 ├── config.py          # App configuration via environment variables
 ├── instance/          # Instance-specific files (e.g., SQLite dev DB)
 │   └── app.db
@@ -135,5 +161,7 @@ This ensures that code is consistent and functional before merging.
 ## Notes
 
 See [NOTES.md](NOTES.MD) for a detailed log of what I’ve learned, decisions I’ve made, and experiments I’ve tried along the way.
+
+```
 
 ---

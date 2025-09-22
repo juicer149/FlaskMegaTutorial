@@ -33,3 +33,11 @@ class Config:
 
     # Pagination
     POSTS_PER_PAGE = int(os.environ.get("POSTS_PER_PAGE", 3))
+
+    # Argon2id password hashing parameters
+    ARGON2_TIME_COST = int(os.environ.get("ARGON2_TIME_COST", 8))           # iterations (default: 8)
+    ARGON2_MEMORY_COST = int(os.environ.get("ARGON2_MEMORY_COST", 131072))  # KiB (128 MB default)
+    ARGON2_PARALLELISM = int(os.environ.get("ARGON2_PARALLELISM", 2))       # threads (default: 2)
+    ARGON2_HASH_LENGTH = int(os.environ.get("ARGON2_HASH_LENGTH", 16))      # bytes (default: 16)
+    ARGON2_SALT_LENGTH = int(os.environ.get("ARGON2_SALT_LENGTH", 16))      # bytes (default: 16)
+    ARGON2_PEPPER = os.environ.get("ARGON2_PEPPER", "")                     # pepper (optional, default: "")

@@ -27,7 +27,7 @@ class User(UserMixin, db.Model):
     )
     email_display: orm.Mapped[str] = orm.mapped_column(sa.String(120), nullable=False)
     password_hash: orm.Mapped[Optional[str]] = orm.mapped_column(
-        sa.String(256), nullable=True
+        sa.String(1024), nullable=True
     )
     posts: orm.WriteOnlyMapped["Post"] = orm.relationship(  # type: ignore[name-defined]
         back_populates="author"

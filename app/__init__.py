@@ -1,10 +1,11 @@
 # Packages
 import os
+from dotenv import load_dotenv
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from dotenv import load_dotenv
 from flask_login import LoginManager
+from flask_mail import Mail
 import logging
 from logging.handlers import SMTPHandler, RotatingFileHandler
 
@@ -18,9 +19,9 @@ load_dotenv()
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Initialize login manager
 login = LoginManager(app)
 login.login_view = "login"  # type: ignore[attr-defined]
-
 
 # Initialize database and migration objects
 db = SQLAlchemy(app)
@@ -66,6 +67,10 @@ if not app.debug:
 
     app.logger.setLevel(logging.INFO)
     app.logger.info("Mega Flask Tutorial startup")
+
+
+# Flask email instance
+mail = Mail(app)
 
 
 from app import routes, models, errors  # noqa: E402, F401

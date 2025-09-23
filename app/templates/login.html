@@ -33,6 +33,11 @@
     <p>{{ form.submit() }}</p>
   </form>
 
+  <!-- Password reset link -->
+  <p>
+    Forgot your password?
+    <a href="{{ url_for('reset_password_request') }}">Click here to reset it</a>
+
   <!-- Link to registration page -->
   <p>
     New user? 

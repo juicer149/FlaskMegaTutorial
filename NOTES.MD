@@ -57,6 +57,12 @@ Each numbered section links directly to the detailed notes below.
 
 25. [**Migrating to Argon2id with pepper**](#25-migrating-to-argon2id-with-pepper) – Switching from Werkzeug’s PBKDF2 to Argon2id with environment-based configuration.
 
+26. [**Email support with Flask-Mail**](#26-email-support-with-flask-mail) – Using `Mail` and `Message` to send plain + HTML emails.
+
+27. [**Alternatives to JWT for reset tokens**](#27-alternatives-to-jwt-for-reset-tokens) – Exploring `itsdangerous`, DB-backed tokens, and why I picked JWT.
+
+28. [**Debugging issues with email links**](#28-debugging-issues-with-email-links) – Pitfalls when copying reset links from debug SMTP output.
+
 ---
 
 
@@ -629,5 +635,138 @@ In a production system, I’d need to **support legacy hashes** until all users 
 * Using pepper raises security significantly (protects even if DB is leaked).
 * Centralizing password hashing logic in `helpers/security.py` makes it easier to swap algorithms in the future.
 * Environment-driven config gives flexibility: I can tune parameters per environment (dev, staging, production, Raspberry Pi, etc.).
+
+---
+
+#### 26. Email support with Flask-Mail
+
+Today I went through chapter 10: **Email support** and used `flask-mail` to send emails in Flask.
+
+##### `from flask_mail import Mail`
+
+`Mail` is the main Flask-Mail extension class.  
+It integrates with the Flask app and manages the SMTP connection.  
+
+Typical setup in `app/__init__.py`:
+
+```python
+from flask_mail import Mail
+mail = Mail(app)
+````
+
+After initialization, use `mail.send(msg)` to send messages.
+
+##### `from flask_mail import Message`
+
+`Message` represents an email message. Attributes:
+
+* `subject: str` → subject line (appears in inbox).
+* `sender: str` → email sender (often `app.config['ADMINS'][0]` or `MAIL_DEFAULT_SENDER`).
+* `recipients: list[str]` → list of recipients.
+* `body: str | None` → plain text body (minimum required).
+* `html: str | None` → optional HTML body (recommended).
+
+**Insights:**
+
+* Subject is like a title — keep it short and clear.
+* Recipients must always be a list.
+* If both `body` and `html` are provided, the email is sent as *multipart/alternative* → client chooses best format.
+* HTML can be generated with Jinja templates, e.g.:
+
+```python
+msg.body = render_template("email/reset_password.txt", user=user)
+msg.html = render_template("email/reset_password.html", user=user)
+```
+
+##### Usage example
+
+```python
+msg = Message(
+    subject="Test subject",
+    sender=app.config['ADMINS'][0],
+    recipients=["your-email@example.com"],
+    body="text body",
+    html="<h1>HTML body</h1>",
+)
+mail.send(msg)
+```
+
+**Key insight:**
+`Message` is just a container. Actual sending happens via `mail.send(msg)`.
+Always include `body`, and include `html` if possible for better UX.
+
+---
+
+#### 27. Alternatives to JWT for reset tokens
+
+The tutorial uses **JWT** for password reset tokens. It works well because:
+
+* Stateless (server stores nothing).
+* Securely signed with `SECRET_KEY`.
+* Built-in expiration.
+* Standardized and debuggable.
+
+But there are alternatives:
+
+**🔹 itsdangerous.URLSafeTimedSerializer**
+
+* Flask-native, supports expiration.
+* Simpler, no external deps.
+* Not standardized like JWT.
+
+**🔹 Database-stored tokens**
+
+* Random string (UUID or `secrets.token_urlsafe()`), stored with `user_id` + `expires_at`.
+* Allows revocation.
+* Requires DB lookup each time.
+
+**🔹 Raw UUID/secrets**
+
+* Easiest to generate.
+* Needs DB storage to validate.
+
+**Why I chose JWT:**
+
+* No DB overhead.
+* Stateless.
+* Expiration built-in.
+* Widely supported and standardized.
+
+**Key insight:**
+JWT isn’t the only way, but it’s a good fit for stateless Flask apps that don’t need revocation logic.
+
+---
+
+#### 28. Debugging issues with email links
+
+When testing reset links with the debug SMTP server, I copied the URL from the terminal output and saw broken links:
+
+```
+http://localhost:5000/reset_password/<token></p>\r\n
+```
+
+Problem:
+
+* The debug server prints **raw MIME output** (with tags and CRLF).
+* Copying directly from the terminal added junk (`</p>` and `\r\n`).
+
+When checking the actual email contents:
+
+```html
+<a href="http://localhost:5000/reset_password/<token>">click here</a>
+```
+
+…everything was correct.
+
+**Conclusion:**
+
+* Don’t copy links from raw SMTP debug output.
+* Use a real mail client, or tools like MailHog/Mailpit.
+* The issue wasn’t in Flask or the template — only in how the debug output was copied.
+
+**Key insight:**
+Test emails in a real client when links matter. Debug server output can be misleading.
+
+```
 
 ---

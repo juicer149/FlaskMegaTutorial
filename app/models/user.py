@@ -11,6 +11,7 @@ from flask_login import UserMixin
 from app import db, login
 from app.helpers.security import hash_password, verify_password
 from app.helpers.avatar import gravatar_url
+from app.helpers import tokens
 from .followers import followers  # import association table
 
 
@@ -57,10 +58,22 @@ class User(UserMixin, db.Model):
         self.email_display = email
 
     def set_password(self, password: str) -> None:
+        if not password:
+            raise ValueError("Password cannot be empty")
         self.password_hash = hash_password(password)
 
     def check_password(self, password: Optional[str]) -> bool:
         return verify_password(self.password_hash, password)
+
+    def get_reset_password_token(self, expires_in: int = 600) -> str:
+        return tokens.generate_reset_token(self.id, expires_in)
+
+    @staticmethod
+    def verify_reset_password_token(token: str) -> Optional["User"]:
+        user_id = tokens.verify_reset_token(token)
+        if user_id is None:
+            return None
+        return db.session.get(User, user_id)
 
     def avatar(self, size: int) -> str:
         return gravatar_url(self.email_canonical, size)

@@ -35,6 +35,7 @@ from datetime import datetime, timezone
 
 from app import app, db
 from app.models import User, Post
+from app.services.user_service import UserService
 from app.forms import (
     LoginForm, 
     RegistrationForm, 
@@ -149,26 +150,19 @@ def register():
 
     form = RegistrationForm()
     if form.validate_on_submit():
-        # safe fallback
-        username = form.username.data.strip()  # type: ignore
-        email = form.email.data.strip()  # type: ignore
-
-        user = User(username, email)
-
-        user.set_password(form.password.data)  # type: ignore
-        db.session.add(user)
-        db.session.commit()
-        login_user(user)  # Not in book: Log in the user immediately after registering
-        flash(f"Welcome {user.username_display}, your account has been created!")
-        return redirect(
-            get_next_page(default=("user", {"username": user.username_canonical}))
-        )
-
-    return render_template(
-            "register.html", 
-            title="Register", 
-            form=form
+        try:
+            user = UserService.register_user(
+                username = form.username.data, 
+                email = form.email.data,
+                password = form.password.data,
             )
+            login_user(user)  # Log in the user immediately after registering
+            flash(f"Congratulations, {user.username_display}, you are now a registered user!")
+            return redirect(url_for("user", username=user.username_canonical))
+        except ValueError as e:
+            flash(str(e))
+
+    return render_template("register.html", title="Register", form=form)
 
 
 # User profile page, the use of <...> indicates a dynamic component
@@ -213,24 +207,16 @@ def user(username):
 def edit_profile():
     form = EditProfileForm(current_user.username_display)
     if form.validate_on_submit():
-        new_username = form.username.data.strip()  # type: ignore
-        current_user.username_canonical = new_username.lower()
-        current_user.username_display = new_username
-        current_user.about_me = form.about_me.data if form.about_me.data else None
-
         try:
-            db.session.commit()
-        except IntegrityError:
-            db.session.rollback()
-            flash("Username already taken, please choose a different one.")
-            return (
-                render_template("edit_profile.html", title="Edit Profile", form=form),
-                400,
+            UserService.update_profile(
+                user = current_user,  # type: ignore 
+                username = form.username.data,  # type: ignore
+                about_me = form.about_me.data,
             )
-
-        flash("Your changes have been saved.")
-        return redirect(url_for("edit_profile"))
-
+            flash("Your changes have been saved.")
+            return redirect(url_for("edit_profile"))
+        except ValueError as e:
+            flash(str(e))
     elif request.method == "GET":
         form.username.data = current_user.username_display
         form.about_me.data = current_user.about_me
@@ -336,17 +322,23 @@ def reset_password_request():
         "reset_password_request.html", title="Reset Password", form=form
     )
 
+# Även denna kan använda UserService?
 @app.route("/reset_password/<token>", methods=["GET", "POST"])
 def reset_password(token):
     if current_user.is_authenticated:
         return redirect(url_for("index"))
+
     user = User.verify_reset_password_token(token)
     if not user:
         return redirect(url_for("index"))
+
     form = ResetPasswordForm()
     if form.validate_on_submit():
-        user.set_password(str(form.password.data))
-        db.session.commit()
-        flash("Your password has been reset.")
-        return redirect(url_for("login"))
+        try:
+            UserService.reset_password(user, form.password.data)  # type: ignore
+            flash("Your password has been reset.")
+            return redirect(url_for("login"))
+        except ValueError as e:
+            flash(str(e))
+            
     return render_template("reset_password.html", form=form)

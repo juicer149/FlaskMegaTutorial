@@ -1,25 +1,22 @@
-import sqlalchemy as sa
-from wtforms.validators import ValidationError
-from app import db
+# app/helpers/validators.py
+from collections.abc import Sequence
 
-
-def validate_unique(
-    field, value_field, original: str | None = None, msg: str = "Value must be unique"
-):
+def check_unique_value(
+    value: str, 
+    existing_values: Sequence[str], 
+    original: str | None = None
+    ) -> bool:
     """
-    Generic uniqueness validator.
+    Check if a value is unique among a given list of canonical values.
 
     Args:
-        field: The WTForms field being validated (e.g. username, email).
-        value_field: SQLAlchemy ORM field to check uniqueness against.
+        value: The string to check.
+        existing_values: A list of canonical strings to check against.
         original: Optional original value (for edit forms).
-        msg: Custom error message.
+    Returns:
+        True if unique, False otherwise.
     """
-    canonical = field.data.lower()
-
+    canonical = value.lower()
     if original and canonical == original.lower():
-        return  # unchanged → ok
-
-    exists = db.session.scalar(sa.select(value_field).where(value_field == canonical))
-    if exists:
-        raise ValidationError(msg)
+        return True
+    return canonical not in (v.lower() for v in existing_values)

@@ -12,10 +12,9 @@ Think of forms as a filter between the web layer and the domain layer.
 
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, EqualTo, Length
+from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
 
-from app.models import User
-from app.helpers.validators import validate_unique
+from app.services.user_service import UserService
 
 
 class LoginForm(FlaskForm):
@@ -35,14 +34,14 @@ class RegistrationForm(FlaskForm):
     submit = SubmitField("Register")
 
     def validate_username(self, username):
-        return validate_unique(
-            username, User.username_canonical, msg="Please use a different username."
-        )
+        """Glue code to call domain logic for username uniqueness check."""
+        if not UserService.is_username_unique(username.data):
+            raise ValidationError("Please use a different username.")
 
     def validate_email(self, email):
-        return validate_unique(
-            email, User.email_canonical, msg="Please use a different email address."
-        )
+        """Glue code to call domain logic for email uniqueness check."""
+        if not UserService.is_email_unique(email.data):
+            raise ValidationError("Please use a different email address.")
 
 
 class EditProfileForm(FlaskForm):
@@ -55,12 +54,11 @@ class EditProfileForm(FlaskForm):
         self.original_username = original_username
 
     def validate_username(self, username):
-        return validate_unique(
-            username,
-            User.username_canonical,
-            original=self.original_username,
-            msg="Please use a different username.",
-        )
+        """Glue code to call domain logic for username uniqueness check."""
+        if not UserService.is_username_unique(
+                username.data, original=self.original_username
+        ):
+            raise ValidationError("Please use a different username.")
 
 
 class EmptyForm(FlaskForm):
@@ -78,9 +76,11 @@ class ResetPasswordRequestForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
     submit = SubmitField("Request Password Reset")
 
+
 class ResetPasswordForm(FlaskForm):
     password = PasswordField("Password", validators=[DataRequired()])
     password2 = PasswordField(
         "Repeat Password", validators=[DataRequired(), EqualTo("password")]
     )
-    submit = SubmitField("Request Password Reset")
+    submit = SubmitField("Reset Password")
+

@@ -1,13 +1,12 @@
 """
-Flask-WTF/WTForms objects.
+Flask-WTF forms (UI layer).
 
-Responsibilities:
-    - Represent user input from the web layer (e.g. login, registration).
-    - Perform basic UI-level validation (not domain logic).
-        - e.g. "Field is required", "Email has correct format", "Passwords match".
-    - Provide CSRF protection automatically.
+- Define HTML form fields and CSRF tokens.
+- Handle **syntactic validation** (required, format, matching).
+- Delegate **domain rules** (uniqueness, business logic) to services.
 
-Think of forms as a filter between the web layer and the domain layer.
+Think of forms as: UI filters → they keep input clean before it
+reaches the service/domain layer.
 """
 
 from flask_wtf import FlaskForm

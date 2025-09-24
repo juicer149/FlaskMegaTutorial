@@ -140,11 +140,12 @@ This ensures that code is consistent and functional before merging.
 ├── app/               # Main Flask application package
 │   ├── __init__.py    # App factory, extensions (db, login, migrate)
 │   ├── errors.py      # Error handlers (404, 500)
-│   ├── forms.py       # Flask-WTF forms
+│   ├── forms.py       # Flask-WTF forms (UI adapters, no business logic)
 │   ├── helpers/       # Utility functions (security, validators, avatar, navigation)
 │   ├── models/        # SQLAlchemy models (User, Post, Followers)
-│   ├── routes.py      # Flask routes (controllers)
-│   └── templates/     # Jinja2 templates (HTML)
+│   ├── routes.py      # Flask routes (controllers, thin entry points)
+│   ├── services/      # Service layer (domain logic: user registration, profile updates, password reset, validation)
+│   └── templates/     # Jinja2 templates (HTML views)
 ├── benchmarks/        # Password hashing benchmarks & calibration
 ├── config.py          # App configuration via environment variables
 ├── instance/          # Instance-specific files (e.g., SQLite dev DB)
@@ -153,8 +154,27 @@ This ensures that code is consistent and functional before merging.
 │   └── versions/      # Auto-generated migration versions
 ├── requirements.txt   # Python dependencies
 ├── setup.cfg          # Linter and tool configuration (flake8, mypy, black)
-└── tests.py           # Unit tests (unittest)
+└── tests/             # Test suite (unit + integration tests, organized by layer)
+    ├── test_models.py
+    ├── test_routes.py
+    └── test_services.py
 ```
+
+Layered responsibilities
+
+- routes/ → Controllers. Thin translation from HTTP → service calls → HTTP response.
+
+- forms.py → Presentation layer. WTForms only handles UI validation (required fields, matching passwords). Domain validation is delegated to services.
+
+- services/ → Domain logic. Centralized rules for registration, uniqueness checks, password changes, profile updates, etc. Reusable across web, API, CLI.
+
+- models/ → Persistence. Defines entities, relationships, and database schema. Business logic is minimized.
+
+- helpers/ → Pure functions and utilities (hashing, avatars, validators). Reusable without Flask context.
+
+- templates/ → Views. Jinja2 HTML templates for rendering.
+
+- This separation keeps controllers thin, models clean, and domain rules centralized in services. It aligns with clean architecture principles and makes the codebase easier to test and maintain.
 
 ---
 

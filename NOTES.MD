@@ -63,6 +63,9 @@ Each numbered section links directly to the detailed notes below.
 
 28. [**Debugging issues with email links**](#28-debugging-issues-with-email-links) – Pitfalls when copying reset links from debug SMTP output.
 
+29. [**Service layer for domain validation**](#29-service-layer-for-domain-validation) – Separating UI validation (WTForms) from domain rules (UserService).
+
+
 ---
 
 
@@ -770,3 +773,85 @@ Test emails in a real client when links matter. Debug server output can be misle
 ```
 
 ---
+
+#### 29. Service layer for domain validation
+
+In the tutorial, validation of uniqueness (e.g. duplicate usernames) is implemented directly inside **forms.py** by querying the database in a custom `validate_username()` method.
+
+Example from chapter 7:
+
+```python
+class EditProfileForm(FlaskForm):
+    def validate_username(self, username):
+        if username.data != self.original_username:
+            user = db.session.scalar(
+                sa.select(User).where(User.username == username.data)
+            )
+            if user is not None:
+                raise ValidationError("Please use a different username.")
+```
+
+At first, I followed this approach but quickly realized that it couples the **UI layer (forms)** to the **database and domain rules**. This breaks separation of concerns:
+
+* A form should only handle syntactic validation (required fields, email format, length checks, passwords matching).
+* Domain validation (uniqueness, password policies, business invariants) belongs in the **service layer**, since it may be reused across multiple entry points (web, API, CLI, background jobs).
+
+---
+
+##### My approach: introducing `UserService`
+
+I extracted domain-level checks (e.g. uniqueness for username and email, password updates) into a dedicated **UserService**:
+
+* `UserService.register_user()` → handles normalization, uniqueness checks, password hashing, persistence.
+* `UserService.update_profile()` → ensures new usernames are unique.
+* `UserService.change_password()` → encapsulates password reset logic.
+
+This slimmed down the `User` model (which now focuses on persistence) and kept forms simple.
+
+---
+
+##### Forms as thin adapters
+
+To preserve good **UX in templates**, I didn’t want to lose WTForms’ inline error rendering.
+The compromise: **forms call into UserService for validation, but only as thin adapters**.
+
+Example:
+
+```python
+class RegistrationForm(FlaskForm):
+    def validate_username(self, username):
+        if not UserService.is_username_unique(username.data):
+            raise ValidationError("Please use a different username.")
+```
+
+Here, the **logic lives in the service**, but the form adapts it into a field-level error for display.
+This way:
+
+* **Service layer** = single source of truth for domain rules.
+* **Forms** = still provide inline errors for the UI, without holding business logic.
+
+---
+
+##### Benefits
+
+* **UI stays lightweight**: forms only handle syntactic validation + error rendering.
+* **Domain rules centralized**: services define invariants once, reused everywhere.
+* **Slimmer models**: `User` focuses on persistence, not business rules.
+* **Cleaner routes**: routes delegate to forms + services instead of duplicating logic.
+* **Testability**: services can be unit tested without Flask/WTF; forms can be tested for error rendering separately.
+
+---
+
+##### Key insight
+
+This refactor aligns with **clean architecture** principles:
+
+* **Models** = data representation (SQLAlchemy).
+* **Services** = domain logic and invariants.
+* **Forms/routes** = UI adapters for input/output.
+
+Flask-WTF is thus treated as a *UI convenience layer*, not the source of truth for validation.
+
+---
+
+

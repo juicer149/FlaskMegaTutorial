@@ -1,10 +1,10 @@
-<!-- app/templates/login.html -->
+<!-- app/templates/register.html -->
 {% extends "base.html" %}
 
 {% block content %}
-  <h1>Sign In</h1>
-  <!-- Login form -->
-  <form action="" method="post" novalidate>
+  <h1>Register</h1>
+  <!-- Registration form -->
+  <form action="" method="post">
     <!-- CSRF protection and hidden fields -->
     {{ form.hidden_tag() }}
 
@@ -13,6 +13,15 @@
       {{ form.username.label }}<br>
       {{ form.username(size=32) }}<br>
       {% for error in form.username.errors %}
+        <span style="color: red;">[{{ error }}]</span>
+      {% endfor %}
+    </p>
+
+    <!-- Email field with validation errors -->
+    <p>
+      {{ form.email.label }}<br>
+      {{ form.email(size=64) }}<br>
+      {% for error in form.email.errors %}
         <span style="color: red;">[{{ error }}]</span>
       {% endfor %}
     </p>
@@ -26,23 +35,16 @@
       {% endfor %}
     </p>
 
-    <!-- Remember me checkbox -->
-    <p>{{ form.remember_me() }} {{ form.remember_me.label }}</p>
+    <!-- Repeat password field with validation errors -->
+    <p>
+      {{ form.password2.label }}<br>
+      {{ form.password2(size=32) }}<br>
+      {% for error in form.password2.errors %}
+        <span style="color: red;">[{{ error }}]</span>
+      {% endfor %}
+    </p>
 
     <!-- Submit button -->
     <p>{{ form.submit() }}</p>
   </form>
-
-  <!-- Password reset link -->
-  <p>
-    Forgot your password?
-    <a href="{{ url_for('main.reset_password_request') }}">Click here to reset it</a>
-
-  <!-- Link to registration page -->
-  <p>
-    New user? 
-    <a href="{{ url_for('main.register', next=request.args.get('next')) }}">
-      Click here to register
-    </a>
-  </p>
 {% endblock %}

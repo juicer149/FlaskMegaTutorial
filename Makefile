@@ -5,6 +5,11 @@ FLASK ?= flask
 
 VENV := .venv
 
+# Flask app entrypoint (use factory in run.py)
+export FLASK_APP=run.py
+export FLASK_ENV=development
+export FLASK_DEBUG=1
+
 # Run the app
 run:
 	$(FLASK) run
@@ -65,3 +70,4 @@ reset-db:
 	$(FLASK) db upgrade
 
 .PHONY: run shell freeze install lint format test clean typecheck reset-db check
+

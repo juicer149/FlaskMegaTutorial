@@ -3,7 +3,14 @@ from typing import Optional
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from flask import current_app
+import re
 
+from app.helpers.security_policy import PasswordPolicy
+
+
+# ------------------------------------------------------------------------------
+# Password hashing and verification using Argon2id with pepper
+# ------------------------------------------------------------------------------
 
 def _get_hasher() -> PasswordHasher:
     """Build a PasswordHasher from Flask config."""
@@ -38,3 +45,21 @@ def verify_password(stored_hash: Optional[str], password: Optional[str]) -> bool
     except VerifyMismatchError:
         return False
 
+
+# ------------------------------------------------------------------------------
+# Password strength validation
+# ------------------------------------------------------------------------------
+
+def is_strong_password(password: str, policy: PasswordPolicy) -> None:
+    """Raise ValueError if password does not meet policy."""
+    if len(password) < policy.min_length:
+        raise ValueError(f"Password must be at least {policy.min_length} characters long.")
+
+    if policy.require_upper and not re.search(r"[A-Z]", password):
+        raise ValueError("Password must contain at least one uppercase letter.")
+    if policy.require_lower and not re.search(r"[a-z]", password):
+        raise ValueError("Password must contain at least one lowercase letter.")
+    if policy.require_digit and not re.search(r"\d", password):
+        raise ValueError("Password must contain at least one digit.")
+    if policy.require_special and not re.search(r"[^A-Za-z0-9]", password):
+        raise ValueError("Password must contain at least one special character.")

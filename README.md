@@ -20,10 +20,12 @@ This project is my way of building solid knowledge in **modern Python web develo
 ## Learning Objectives
 
 * **Flask** – Application structure, routing, views, request lifecycle.
+* **Blueprints** – Orginicing routes into modular units (bp) instead of a monolithic app.routes.
 * **Jinja2** – Dynamic HTML templating.
 * **HTML/CSS** – Frontend basics for styling and layout.
 * **Database integration** – Using SQLAlchemy ORM (from raw SQL background).
 * **User authentication** – Sessions, logins, and password hashing.
+* **Password security** – Using Argon2id, environment-based tuning, and password strength policy.
 * **Testing** – Unit tests with `unittest`.
 * **Code quality** – Linting (`flake8`), type-checking (`mypy`), formatting (`black`).
 * **Git & GitHub** – Branching, commits, pull requests, and CI/CD workflows.
@@ -94,6 +96,29 @@ ARGON2_PEPPER=your-secret-pepper-here
 
 ---
 
+## Password Strength Policy
+
+In addition to hashing, a password strength policy is enforced at registration and password reset.
+The rules are defined in app/helpers/security_policy.py using a dataclass, and configured via .env.
+
+Example .env section:
+PASSWORD_MIN_LENGTH=8
+PASSWORD_REQUIRE_UPPERCASE=True
+PASSWORD_REQUIRE_LOWERCASE=True
+PASSWORD_REQUIRE_DIGIT=True
+PASSWORD_REQUIRE_SPECIAL=True
+
+future enhancements could include:
+PASSWORD_DISALLOW_COMMON=True
+PASSWORD_DISALLOW_PWNED=True
+
+## Why this matters?
+
+* Prevents weak passwords that are easily guessable or crackable.
+* Centralized policy makes it easy to tune requirements as needed.
+* Enforced at both service layer and UI layer (forms.py).
+
+
 ## Development Workflow
 
 Common commands are managed via the `Makefile`:
@@ -144,7 +169,7 @@ This ensures that code is consistent and functional before merging.
 │   ├── helpers/       # Utility functions (security, validators, avatar, navigation)
 │   ├── models/        # SQLAlchemy models (User, Post, Followers)
 │   ├── routes.py      # Flask routes (controllers, thin entry points)
-│   ├── services/      # Service layer (domain logic: user registration, profile updates, password reset, validation)
+│   ├── services/      # Service layer (domain logic: user registration, profile updates, password reset, validation, etc.)
 │   └── templates/     # Jinja2 templates (HTML views)
 ├── benchmarks/        # Password hashing benchmarks & calibration
 ├── config.py          # App configuration via environment variables
@@ -166,7 +191,7 @@ Layered responsibilities
 
 - forms.py → Presentation layer. WTForms only handles UI validation (required fields, matching passwords). Domain validation is delegated to services.
 
-- services/ → Domain logic. Centralized rules for registration, uniqueness checks, password changes, profile updates, etc. Reusable across web, API, CLI.
+- services/ → Domain logic. Centralized rules for registration, uniqueness checks, password strength, profile updates, etc. 
 
 - models/ → Persistence. Defines entities, relationships, and database schema. Business logic is minimized.
 

@@ -36,12 +36,12 @@
   <!-- Password reset link -->
   <p>
     Forgot your password?
-    <a href="{{ url_for('main.reset_password_request') }}">Click here to reset it</a>
+    <a href="{{ url_for('reset_password_request') }}">Click here to reset it</a>
 
   <!-- Link to registration page -->
   <p>
     New user? 
-    <a href="{{ url_for('main.register', next=request.args.get('next')) }}">
+    <a href="{{ url_for('register', next=request.args.get('next')) }}">
       Click here to register
     </a>
   </p>

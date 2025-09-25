@@ -2,7 +2,7 @@
 Routes (Flask views).
 
 What it is:
-    The "controller" layer in an MVC pattern, defined with @app.route.
+    The "controller" layer in an MVC pattern, defined with @bp.route.
 Responsibilities:
     - Receive HTTP requests.
     - Delegate to forms, models, or services for logic.
@@ -17,42 +17,49 @@ Example:
 """
 
 from flask import (
-    render_template, 
-    flash, 
-    redirect, 
-    url_for, 
+    render_template,
+    flash,
+    redirect,
+    url_for,
     request,
-    )
+    current_app,
+    Blueprint,
+)
 from flask_login import (
-    current_user, 
-    login_user, 
-    logout_user, 
+    current_user,
+    login_user,
+    logout_user,
     login_required,
-    )
+)
 import sqlalchemy as sa
-from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
 
-from app import app, db
+from app import db
 from app.models import User, Post
 from app.services.user_service import UserService
 from app.forms import (
-    LoginForm, 
-    RegistrationForm, 
-    EditProfileForm, 
-    EmptyForm, 
-    PostForm, 
+    LoginForm,
+    RegistrationForm,
+    EditProfileForm,
+    EmptyForm,
+    PostForm,
     ResetPasswordRequestForm,
     ResetPasswordForm,
-    )
+)
 from app.helpers.navigation import get_next_page
 from app.email import send_password_reset_email
 
 
 # ----------------------------------------------------------
+# Blueprint
+# ----------------------------------------------------------
+bp = Blueprint("main", __name__)
+
+
+# ----------------------------------------------------------
 # Global hooks
 # ----------------------------------------------------------
-@app.before_request
+@bp.before_app_request
 def before_request():
     """Update last_seen for logged-in users before each request"""
     if current_user.is_authenticated:
@@ -63,52 +70,43 @@ def before_request():
 # ----------------------------------------------------------
 # Routes
 # ----------------------------------------------------------
-
-
-# Home page route
-@app.route("/", methods=["GET", "POST"])
-@app.route("/index", methods=["GET", "POST"])
+@bp.route("/", methods=["GET", "POST"])
+@bp.route("/index", methods=["GET", "POST"])
 @login_required
 def index():
     form = PostForm()
 
     if form.validate_on_submit():
-        post = Post(body=form.post.data, author=current_user) # type: ignore
+        post = Post(body=form.post.data, author=current_user)  # type: ignore
         db.session.add(post)
         db.session.commit()
         flash("Your post is now live!")
-        return redirect(url_for("index"))
+        return redirect(url_for("main.index"))
 
-    # pagination
     page = request.args.get("page", 1, type=int)
     posts = db.paginate(
         current_user.following_posts(),
         page=page,
-        per_page=app.config["POSTS_PER_PAGE"],
+        per_page=current_app.config["POSTS_PER_PAGE"],
         error_out=False,
     )
-    next_url = url_for('index', page=posts.next_num) \
-        if posts.has_next else None
-    prev_url = url_for('index', page=posts.prev_num) \
-        if posts.has_prev else None
+    next_url = url_for("main.index", page=posts.next_num) if posts.has_next else None
+    prev_url = url_for("main.index", page=posts.prev_num) if posts.has_prev else None
 
     return render_template(
-            "index.html", 
-            title="Home", 
-            form=form,
-            posts=posts.items, 
-            next_url=next_url, 
-            prev_url=prev_url
-            )
+        "index.html",
+        title="Home",
+        form=form,
+        posts=posts.items,
+        next_url=next_url,
+        prev_url=prev_url,
+    )
 
 
-
-# User login route
-@app.route("/login", methods=["GET", "POST"])
+@bp.route("/login", methods=["GET", "POST"])
 def login():
-
     if current_user.is_authenticated:
-        return redirect(url_for("index"))
+        return redirect(url_for("main.index"))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -119,78 +117,68 @@ def login():
         )
         if user is None or not user.check_password(form.password.data):
             flash("Invalid username or password")
-            return redirect(url_for("login"))
+            return redirect(url_for("main.login"))
 
-        # Not in book, but added to log in the user immediately after registering
-        # Made a function to get the next page safely and reused it here
         login_user(user, remember=form.remember_me.data)
         return redirect(
-            get_next_page(default=("user", {"username": user.username_canonical}))
+            get_next_page(default=("main.user", {"username": user.username_canonical}))
         )
 
-    return render_template(
-            "login.html", 
-            title="Sign In", 
-            form=form
-            )
+    return render_template("login.html", title="Sign In", form=form)
 
 
-# User logout route
-@app.route("/logout")
+@bp.route("/logout")
 def logout():
     logout_user()
-    return redirect(url_for("index"))
+    return redirect(url_for("main.index"))
 
 
-# User registration page
-@app.route("/register", methods=["GET", "POST"])
+@bp.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for("index"))
+        return redirect(url_for("main.index"))
 
     form = RegistrationForm()
     if form.validate_on_submit():
         try:
             user = UserService.register_user(
-                username = form.username.data, 
-                email = form.email.data,
-                password = form.password.data,
+                username=form.username.data,
+                email=form.email.data,
+                password=form.password.data,
             )
-            login_user(user)  # Log in the user immediately after registering
+            login_user(user)
             flash(f"Congratulations, {user.username_display}, you are now a registered user!")
-            return redirect(url_for("user", username=user.username_canonical))
+            return redirect(url_for("main.user", username=user.username_canonical))
         except ValueError as e:
             flash(str(e))
 
     return render_template("register.html", title="Register", form=form)
 
 
-# User profile page, the use of <...> indicates a dynamic component
-@app.route("/user/<username>")
+@bp.route("/user/<username>")
 @login_required
 def user(username):
     user = db.first_or_404(
         sa.select(User).where(User.username_canonical == username.lower())  # type: ignore
     )
     page = request.args.get("page", 1, type=int)
-    query = sa.select(Post).where(
-            Post.author == user).order_by(Post.timestamp.desc())
+    query = sa.select(Post).where(Post.author == user).order_by(Post.timestamp.desc())
     posts = db.paginate(
         query,
         page=page,
-        per_page=app.config["POSTS_PER_PAGE"],
+        per_page=current_app.config["POSTS_PER_PAGE"],
         error_out=False,
     )
-    next_url = url_for(
-            "user", 
-            username=user.username_canonical, 
-            page=posts.next_num
-            ) if posts.has_next else None
-    prev_url = url_for(
-            "user",
-            username=user.username_canonical,
-            page=posts.prev_num
-            ) if posts.has_prev else None
+    next_url = (
+        url_for("main.user", username=user.username_canonical, page=posts.next_num)
+        if posts.has_next
+        else None
+    )
+    prev_url = (
+        url_for("main.user", username=user.username_canonical, page=posts.prev_num)
+        if posts.has_prev
+        else None
+    )
     form = EmptyForm()
     return render_template(
         "user.html",
@@ -198,23 +186,23 @@ def user(username):
         posts=posts.items,
         next_url=next_url,
         prev_url=prev_url,
-        form=form
-        )
+        form=form,
+    )
 
 
-@app.route("/edit_profile", methods=["GET", "POST"])
+@bp.route("/edit_profile", methods=["GET", "POST"])
 @login_required
 def edit_profile():
     form = EditProfileForm(current_user.username_display)
     if form.validate_on_submit():
         try:
             UserService.update_profile(
-                user = current_user,  # type: ignore 
-                username = form.username.data,  # type: ignore
-                about_me = form.about_me.data,
+                user=current_user,  # type: ignore
+                username=form.username.data,  # type: ignore
+                about_me=form.about_me.data,
             )
             flash("Your changes have been saved.")
-            return redirect(url_for("edit_profile"))
+            return redirect(url_for("main.edit_profile"))
         except ValueError as e:
             flash(str(e))
     elif request.method == "GET":
@@ -224,7 +212,7 @@ def edit_profile():
     return render_template("edit_profile.html", title="Edit Profile", form=form)
 
 
-@app.route("/follow/<username>", methods=["POST"])
+@bp.route("/follow/<username>", methods=["POST"])
 @login_required
 def follow(username):
     form = EmptyForm()
@@ -235,21 +223,21 @@ def follow(username):
 
         if user is None:
             flash(f"User {username} not found.")
-            return redirect(url_for("index"))
+            return redirect(url_for("main.index"))
 
         if user == current_user:
             flash("You cannot follow yourself!")
-            return redirect(url_for("user", username=user.username_canonical))
+            return redirect(url_for("main.user", username=user.username_canonical))
 
         current_user.follow(user)
         db.session.commit()
         flash(f"You are following {user.username_display}!")
-        return redirect(url_for("user", username=user.username_canonical))
+        return redirect(url_for("main.user", username=user.username_canonical))
     else:
-        return redirect(url_for("index"))
+        return redirect(url_for("main.index"))
 
 
-@app.route("/unfollow/<username>", methods=["POST"])
+@bp.route("/unfollow/<username>", methods=["POST"])
 @login_required
 def unfollow(username):
     form = EmptyForm()
@@ -261,21 +249,21 @@ def unfollow(username):
 
         if user is None:
             flash(f"User {username} not found.")
-            return redirect(url_for("index"))
+            return redirect(url_for("main.index"))
 
         if user == current_user:
             flash("You cannot unfollow yourself!")
-            return redirect(url_for("user", username=user.username_canonical))
+            return redirect(url_for("main.user", username=user.username_canonical))
 
         current_user.unfollow(user)
         db.session.commit()
         flash(f"You have unfollowed {user.username_display}.")
-        return redirect(url_for("user", username=user.username_canonical))
+        return redirect(url_for("main.user", username=user.username_canonical))
     else:
-        return redirect(url_for("index"))
+        return redirect(url_for("main.index"))
 
 
-@app.route("/explore")
+@bp.route("/explore")
 @login_required
 def explore():
     page = request.args.get("page", 1, type=int)
@@ -283,12 +271,12 @@ def explore():
     posts = db.paginate(
         query,
         page=page,
-        per_page=app.config["POSTS_PER_PAGE"],
+        per_page=current_app.config["POSTS_PER_PAGE"],
         error_out=False,
     )
 
-    next_url = url_for("explore", page=posts.next_num) if posts.has_next else None
-    prev_url = url_for("explore", page=posts.prev_num) if posts.has_prev else None
+    next_url = url_for("main.explore", page=posts.next_num) if posts.has_next else None
+    prev_url = url_for("main.explore", page=posts.prev_num) if posts.has_prev else None
 
     return render_template(
         "index.html",
@@ -299,46 +287,42 @@ def explore():
     )
 
 
-@app.route("/reset_password_request", methods=["GET", "POST"])
+@bp.route("/reset_password_request", methods=["GET", "POST"])
 def reset_password_request():
     if current_user.is_authenticated:
-        return redirect(url_for("index"))
+        return redirect(url_for("main.index"))
     form = ResetPasswordRequestForm()
     if form.validate_on_submit():
-        # Normalize email to lowercase to check against canonical version
         email = (form.email.data or "").strip().lower()
         user = db.session.scalar(
-                sa.select(User).where(User.email_canonical == email)  
+            sa.select(User).where(User.email_canonical == email)
         )
-        # Send the email only if the user exists, but don't reveal that info
         if user:
             send_password_reset_email(user)
 
-        # Regardless of whether the email was found, flash the same message
         flash("Check your email for the instructions to reset your password")
-        return redirect(url_for("login"))
+        return redirect(url_for("main.login"))
 
-    return render_template(
-        "reset_password_request.html", title="Reset Password", form=form
-    )
+    return render_template("reset_password_request.html", title="Reset Password", form=form)
 
-# Även denna kan använda UserService?
-@app.route("/reset_password/<token>", methods=["GET", "POST"])
+
+@bp.route("/reset_password/<token>", methods=["GET", "POST"])
 def reset_password(token):
     if current_user.is_authenticated:
-        return redirect(url_for("index"))
+        return redirect(url_for("main.index"))
 
     user = User.verify_reset_password_token(token)
     if not user:
-        return redirect(url_for("index"))
+        return redirect(url_for("main.index"))
 
     form = ResetPasswordForm()
     if form.validate_on_submit():
         try:
             UserService.reset_password(user, form.password.data)  # type: ignore
             flash("Your password has been reset.")
-            return redirect(url_for("login"))
+            return redirect(url_for("main.login"))
         except ValueError as e:
             flash(str(e))
-            
+
     return render_template("reset_password.html", form=form)
+

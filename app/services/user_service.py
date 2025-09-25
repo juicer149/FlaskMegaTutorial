@@ -10,9 +10,13 @@ models store data, services decide the rules.
 """
 
 import sqlalchemy as sa
+from flask import current_app
 from app import db
 from app.models import User
 from app.helpers.validators import check_unique_value
+from app.helpers.security import is_strong_password
+from app.helpers.security_policy import PasswordPolicy
+
 
 class UserService:
     # ------------------------------
@@ -28,6 +32,22 @@ class UserService:
         values = db.session.scalars(sa.select(User.email_canonical)).all()
         return check_unique_value(email, values, original=original)
 
+    @staticmethod
+    def _get_password_policy() -> PasswordPolicy:
+        """Read password policy from config (centralized here)."""
+        return PasswordPolicy(
+            min_length=current_app.config.get("PASSWORD_MIN_LENGTH", 8),
+            require_upper=current_app.config.get("PASSWORD_REQUIRE_UPPER", True),
+            require_lower=current_app.config.get("PASSWORD_REQUIRE_LOWER", True),
+            require_digit=current_app.config.get("PASSWORD_REQUIRE_DIGIT", True),
+            require_special=current_app.config.get("PASSWORD_REQUIRE_SPECIAL", True),
+        )
+
+    @staticmethod
+    def validate_password_strength(password: str) -> None:
+        """Validate password according to policy. Raises ValueError if weak."""
+        policy = UserService._get_password_policy()
+        is_strong_password(password, policy)
     # ------------------------------
     # User operations
     # ------------------------------
@@ -36,25 +56,25 @@ class UserService:
         username: str | None,
         email: str | None,
         password: str | None,
-        ) -> User:
-        # kan man använda en mask typ som kan ge rätt felmeddelande till route?
+    ) -> User:
         if not username or not email or not password:
             raise ValueError("Username, email and password are required")
-        if not UserService.is_username_unique(username):
-            raise ValueError("Username already taken")
-        if not UserService.is_email_unique(email):
-            raise ValueError("Email already taken")
 
         username = username.strip()
         email = email.strip()
-        
+
         if not UserService.is_username_unique(username):
             raise ValueError("Username already taken")
         if not UserService.is_email_unique(email):
             raise ValueError("Email already taken")
 
+        # Validate password strength
+        UserService.validate_password_strength(password)
+
+        # Create user
         user = User(username, email)
-        user.set_password(password) # om jag har denna här så kan jag ta bort den från modellen eller från services?
+        user.set_password(password)
+
         db.session.add(user)
         db.session.commit()
         return user
@@ -74,14 +94,14 @@ class UserService:
         user.about_me = about_me if about_me else None
         db.session.commit()
 
-    # not changed in user model yet
     @staticmethod
     def change_password(user: User, new_password: str) -> None:
+        UserService.validate_password_strength(new_password)
         user.set_password(new_password)
         db.session.commit()
 
     @staticmethod
     def reset_password(user: User, new_password: str) -> None:
+        UserService.validate_password_strength(new_password)
         user.set_password(new_password)
         db.session.commit()
-

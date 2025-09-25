@@ -1,6 +1,17 @@
 """
-User model and related methods.
+User model (persistence layer).
+
+- Represents registered users of the application.
+- Stores canonical (lowercased) and display forms of username/email.
+- Manages password hashing and verification.
+- Supports password reset tokens and Gravatar integration.
+- Tracks profile info (about_me, last_seen) and social graph (followers/following).
+- Provides query helpers for relationships and following posts.
+
+Think of models as: the **data source of truth** —
+they define schema and persistence, and expose low-level behaviors.
 """
+
 
 from datetime import datetime, timezone
 from typing import Optional
@@ -57,14 +68,22 @@ class User(UserMixin, db.Model):
         self.email_canonical = email.lower()
         self.email_display = email
 
+    # ------------------------------
+    # Password management
+    # ------------------------------
     def set_password(self, password: str) -> None:
+        """Hash and store the user's password."""
         if not password:
             raise ValueError("Password cannot be empty")
         self.password_hash = hash_password(password)
 
     def check_password(self, password: Optional[str]) -> bool:
+        """Verify a password against stored hash."""
         return verify_password(self.password_hash, password)
 
+    # ------------------------------
+    # Password reset helpers
+    # ------------------------------
     def get_reset_password_token(self, expires_in: int = 600) -> str:
         return tokens.generate_reset_token(self.id, expires_in)
 
@@ -75,6 +94,9 @@ class User(UserMixin, db.Model):
             return None
         return db.session.get(User, user_id)
 
+    # ------------------------------
+    # Profile helpers
+    # ------------------------------
     def avatar(self, size: int) -> str:
         return gravatar_url(self.email_canonical, size)
 
@@ -105,8 +127,7 @@ class User(UserMixin, db.Model):
         return self._relationship_count(self.following)
 
     def following_posts(self):
-        # local import to avoid circular import
-        from .post import Post
+        from .post import Post  # local import to avoid circular import
 
         Author = orm.aliased(User)
         Follower = orm.aliased(User)
@@ -116,12 +137,14 @@ class User(UserMixin, db.Model):
             .join(Post.author.of_type(Author))
             .join(Author.followers.of_type(Follower), isouter=True)
             .where(sa.or_(Follower.id == self.id, Author.id == self.id))
-            # .group_by(Post)
             .distinct()
             .order_by(Post.timestamp.desc())
         )
         return stmt
 
+    # ------------------------------
+    # Misc
+    # ------------------------------
     def __repr__(self) -> str:
         return f"<User {self.username_display}>"
 
@@ -129,3 +152,4 @@ class User(UserMixin, db.Model):
 @login.user_loader
 def load_user(id: str) -> Optional["User"]:
     return db.session.get(User, int(id))
+

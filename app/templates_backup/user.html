@@ -26,13 +26,13 @@
 
       {% if user == current_user %}
         <!-- If this is the logged-in user's own profile -->
-        <p><a href="{{ url_for('main.edit_profile') }}">Edit your profile</a></p>
+        <p><a href="{{ url_for('edit_profile') }}">Edit your profile</a></p>
 
       {% elif not current_user.is_following(user) %}
         <!-- If viewing another profile: show "Follow" button if not already following -->
         <p>
           <!-- IMPORTANT: use username_canonical (unique & lowercase) for URLs -->
-          <form action="{{ url_for('main.follow', username=user.username_canonical) }}" method="post">
+          <form action="{{ url_for('follow', username=user.username_canonical) }}" method="post">
             {{ form.hidden_tag() }} <!-- CSRF protection -->
             {{ form.submit(value="Follow") }}
           </form>
@@ -41,7 +41,7 @@
       {% else %}
         <!-- If already following: show "Unfollow" button -->
         <p>
-          <form action="{{ url_for('main.unfollow', username=user.username_canonical) }}" method="post">
+          <form action="{{ url_for('unfollow', username=user.username_canonical) }}" method="post">
             {{ form.hidden_tag() }} <!-- CSRF protection -->
             {{ form.submit(value="Unfollow") }}
           </form>

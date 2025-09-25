@@ -65,6 +65,9 @@ Each numbered section links directly to the detailed notes below.
 
 29. [**Service layer for domain validation**](#29-service-layer-for-domain-validation) – Separating UI validation (WTForms) from domain rules (UserService).
 
+30. [**Blueprint refactor**](#30-blueprint-refactor) – Splitting routes into Flask Blueprints for modularity, scalability, and clearer testing.
+
+31. [**Centralized password policy**](#33-centralized-password-policy-passwordpolicy--validation-across-layers) – A single source of truth for password rules using `PasswordPolicy` and `is_strong_password`.
 
 ---
 
@@ -855,3 +858,109 @@ Flask-WTF is thus treated as a *UI convenience layer*, not the source of truth f
 ---
 
 
+#### 30. Blueprint refactor
+
+Originally, all routes lived in a single **monolithic `routes.py`**.
+I refactored them into **Flask Blueprints**, so each domain (auth, main, API, etc.) has its own file.
+
+**Why this is better:**
+
+* **Separation of concerns** – each submodule (e.g. `auth`) owns its routes.
+* **Scalability** – easier to grow from a small app into multiple modules.
+* **Testability** – tests can focus on individual blueprints in isolation.
+
+**Setup:**
+
+`app/auth/routes.py`
+
+```python
+auth_bp = Blueprint("auth", __name__)
+
+@auth_bp.route("/login", methods=["GET", "POST"])
+def login():
+    ...
+```
+
+Registering in `create_app()`:
+
+```python
+from app.auth.routes import auth_bp
+app.register_blueprint(auth_bp, url_prefix="/auth")
+```
+
+**Key insight:**
+Blueprints make the project **modular** and closer in style to larger Flask/FastAPI architectures.
+They enforce a clear separation between **UI (routes)**, **services**, and **models**.
+
+---
+
+#### 33. Centralized password policy (PasswordPolicy + validation across layers)
+
+Previously, password validation was **scattered** across forms or even inside models.
+I introduced a **centralized policy** via a `PasswordPolicy` dataclass and a validator `is_strong_password`.
+
+**Implementation:**
+
+`app/helpers/security_policy.py`
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class PasswordPolicy:
+    min_length: int = 8
+    require_upper: bool = True
+    require_lower: bool = True
+    require_digit: bool = True
+    require_special: bool = True
+```
+
+Validation helper:
+
+```python
+def is_strong_password(password: str, policy: PasswordPolicy) -> None:
+    if len(password) < policy.min_length:
+        raise ValueError(f"Password must be at least {policy.min_length} characters long.")
+    if policy.require_upper and not re.search(r"[A-Z]", password):
+        raise ValueError("Password must contain at least one uppercase letter.")
+    ...
+```
+
+Service layer pulls policy from config:
+
+```python
+@staticmethod
+def _get_password_policy() -> PasswordPolicy:
+    return PasswordPolicy(
+        min_length=current_app.config.get("PASSWORD_MIN_LENGTH", 8),
+        require_upper=current_app.config.get("PASSWORD_REQUIRE_UPPER", True),
+        require_lower=current_app.config.get("PASSWORD_REQUIRE_LOWER", True),
+        require_digit=current_app.config.get("PASSWORD_REQUIRE_DIGIT", True),
+        require_special=current_app.config.get("PASSWORD_REQUIRE_SPECIAL", True),
+    )
+```
+
+Form layer uses a thin adapter for error reporting:
+
+```python
+def validate_password(self, password):
+    try:
+        UserService.validate_password_strength(password.data)
+    except ValueError as e:
+        raise ValidationError(str(e))
+```
+
+**Why this is better:**
+
+* **Single source of truth** – rules live only in `PasswordPolicy`.
+* **Config-driven** – rules can be adjusted via `.env` without touching code.
+* **Reusable** – same logic applies to web, CLI, API.
+* **Testable** – policies can be unit tested independently (e.g. accept `ValidPass1!`, reject `password123`).
+
+**Key insight:**
+By separating password policy from forms and models, the architecture becomes clearer:
+
+* **Forms** are just adapters for UI validation.
+* **Domain rules** live in the service layer.
+
+---

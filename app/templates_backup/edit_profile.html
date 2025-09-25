@@ -1,0 +1,32 @@
+<!-- app/templates/edit_profile.html -->
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Edit Profile</h1>
+  <!-- Profile edit form -->
+  <form action="" method="post">
+    <!-- CSRF protection and hidden fields -->
+    {{ form.hidden_tag() }}
+
+    <!-- Username field with validation errors -->
+    <p>
+      {{ form.username.label }}<br>
+      {{ form.username(size=32) }}<br>
+      {% for error in form.username.errors %}
+        <span style="color: red;">[{{ error }}]</span>
+      {% endfor %}
+    </p>
+
+    <!-- About me field with validation errors -->
+    <p>
+      {{ form.about_me.label }}<br>
+      {{ form.about_me(cols=50, row=4) }}<br>
+      {% for error in form.about_me.errors %}
+        <span style="color: red;">[{{ error }}]</span>
+      {% endfor %}
+    </p>
+
+    <!-- Submit button -->
+    <p>{{ form.submit() }}</p>
+  </form>
+{% endblock %}

@@ -42,6 +42,13 @@ class RegistrationForm(FlaskForm):
         if not UserService.is_email_unique(email.data):
             raise ValidationError("Please use a different email address.")
 
+    def validate_password(self, password):
+        """Glue code to call domain password strength validation."""
+        try:
+            UserService.validate_password_strength(password.data)
+        except ValueError as e:
+            raise ValidationError(str(e))
+
 
 class EditProfileForm(FlaskForm):
     username = StringField("Username", validators=[DataRequired()])
@@ -55,7 +62,7 @@ class EditProfileForm(FlaskForm):
     def validate_username(self, username):
         """Glue code to call domain logic for username uniqueness check."""
         if not UserService.is_username_unique(
-                username.data, original=self.original_username
+            username.data, original=self.original_username
         ):
             raise ValidationError("Please use a different username.")
 
@@ -65,10 +72,10 @@ class EmptyForm(FlaskForm):
 
 
 class PostForm(FlaskForm):
-    post = TextAreaField('Say something', validators=[
+    post = TextAreaField("Say something", validators=[
         DataRequired(), Length(min=1, max=140)
     ])
-    submit = SubmitField('Submit')
+    submit = SubmitField("Submit")
 
 
 class ResetPasswordRequestForm(FlaskForm):
@@ -82,4 +89,11 @@ class ResetPasswordForm(FlaskForm):
         "Repeat Password", validators=[DataRequired(), EqualTo("password")]
     )
     submit = SubmitField("Reset Password")
+
+    def validate_password(self, password):
+        """Glue code to call domain password strength validation."""
+        try:
+            UserService.validate_password_strength(password.data)
+        except ValueError as e:
+            raise ValidationError(str(e))
 

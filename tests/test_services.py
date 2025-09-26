@@ -29,7 +29,9 @@ class UserServiceCase(unittest.TestCase):
 
     def test_register_user_weak_password(self):
         with self.assertRaises(ValueError) as ctx:
-            UserService.register_user("Bob", "bob@example.com", "weak")
+            UserService.register_user(
+                "Bob", "bob@example.com", "weak"
+            )
         self.assertIn("Password", str(ctx.exception))
 
     def test_register_user_duplicate_username(self):

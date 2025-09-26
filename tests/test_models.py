@@ -1,10 +1,12 @@
 import unittest
+import app.security.hashes.argon2  # noqa: F401
 import sqlalchemy as sa
 from datetime import datetime, timezone, timedelta
 
 from app import create_app, db
 from app.models import User, Post
 from tests.test_config import TestingConfig
+from app.security.core.factory import SecurityFactory
 
 
 class UserModelCase(unittest.TestCase):
@@ -13,6 +15,7 @@ class UserModelCase(unittest.TestCase):
         self.app_context = self.app.app_context()
         self.app_context.push()
         db.create_all()
+        self.hasher = SecurityFactory.get_hasher()
 
     def tearDown(self):
         db.session.remove()
@@ -21,7 +24,7 @@ class UserModelCase(unittest.TestCase):
 
     def test_password_hashing(self):
         u = User(username="Susan", email="susan@example.com")
-        u.set_password("ValidPass1!")
+        u.set_password("ValidPass1!", self.hasher)
         self.assertFalse(u.check_password("wrongpass"))
         self.assertTrue(u.check_password("ValidPass1!"))
 
@@ -56,10 +59,10 @@ class UserModelCase(unittest.TestCase):
         db.session.add_all([u1, u2, u3, u4])
 
         now = datetime.now(timezone.utc)
-        p1 = Post(body="post from john", author=u1, timestamp=now + timedelta(seconds=1))
-        p2 = Post(body="post from susan", author=u2, timestamp=now + timedelta(seconds=4))
-        p3 = Post(body="post from mary", author=u3, timestamp=now + timedelta(seconds=3))
-        p4 = Post(body="post from david", author=u4, timestamp=now + timedelta(seconds=2))
+        p1 = Post(body="post from john", author=u1, timestamp=now + timedelta(seconds=1))  # type: ignore
+        p2 = Post(body="post from susan", author=u2, timestamp=now + timedelta(seconds=4))  # type: ignore
+        p3 = Post(body="post from mary", author=u3, timestamp=now + timedelta(seconds=3))  # type: ignore
+        p4 = Post(body="post from david", author=u4, timestamp=now + timedelta(seconds=2))  # type: ignore
         db.session.add_all([p1, p2, p3, p4])
         db.session.commit()
 

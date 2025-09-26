@@ -170,8 +170,15 @@ This ensures that code is consistent and functional before merging.
 │   ├── models/        # SQLAlchemy models (User, Post, Followers)
 │   ├── routes.py      # Flask routes (controllers, thin entry points)
 │   ├── services/      # Service layer (domain logic: user registration, profile updates, password reset, validation, etc.)
+│   └── security/               # Modular security framework
+│       ├── __init__.py
+│       ├── core/               # Factory, protocol, registry
+│       ├── hashes/             # Hashing implementations (Argon2, etc.)
+│       ├── policies/           # Password and algorithm policies
+│       ├── exceptions.py
+│       └── benchmarks/         # Benchmarks & calibration tools (will move the old one here)
 │   └── templates/     # Jinja2 templates (HTML views)
-├── benchmarks/        # Password hashing benchmarks & calibration
+├── benchmarks/        # Password hashing benchmarks & calibration (legacy, will move to app/security/benchmarks/)
 ├── config.py          # App configuration via environment variables
 ├── instance/          # Instance-specific files (e.g., SQLite dev DB)
 │   └── app.db

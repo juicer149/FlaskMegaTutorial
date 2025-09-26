@@ -69,6 +69,24 @@ Each numbered section links directly to the detailed notes below.
 
 31. [**Centralized password policy**](#33-centralized-password-policy-passwordpolicy--validation-across-layers) – A single source of truth for password rules using `PasswordPolicy` and `is_strong_password`.
 
+Perfekt! 🙌 Jag förstår precis – du vill föra in din stora **security-refaktor** i samma stil som resten av ditt `NOTES.md`:
+
+* Ett nytt appendixnummer (efter 33).
+* En kort sammanfattning i **Appendix: Learning Map** med länk till avsnittet.
+* Sedan en längre sektion med rubrik, underrubriker och listor – samma ton som resten (”Key insight”, ”Why this matters”, osv).
+
+Här är mitt förslag på hur du kan lägga in det i din journal:
+
+---
+
+## Appendix: Learning Map
+
+[...]
+
+33. [**Centralized password policy**](#33-centralized-password-policy-passwordpolicy--validation-across-layers) – A single source of truth for password rules using `PasswordPolicy` and `is_strong_password`.
+
+34. [**Refactor: Dedicated security package**](#34-refactor-dedicated-security-package-for-password-handling) – Moving hashing & policies into `app/security/`, adding registry, factory, and full test coverage.
+
 ---
 
 
@@ -962,5 +980,100 @@ By separating password policy from forms and models, the architecture becomes cl
 
 * **Forms** are just adapters for UI validation.
 * **Domain rules** live in the service layer.
+
+---
+
+
+#### 34. Refactor: Dedicated `security` package for password handling
+
+I have refactored the application to **decouple password hashing and policy enforcement** from the old `helpers/` directory into a new dedicated package: `app/security/`.
+
+---
+
+##### 1. Dedicated security package
+
+* Removed `helpers/security.py` and `helpers/security_policy.py`.
+* Introduced `app/security/` with a clear structure:
+
+  * **`policies/`** → password rules (`PasswordPolicy`) and Argon2 parameters (`Argon2Policy`).
+  * **`core/`** → protocol definitions, registry, and factory orchestration.
+  * **`hashers/`** → algorithm implementations (`Argon2Hasher`, extensible to bcrypt/scrypt).
+  * **`exceptions.py`** → custom error classes like `InvalidPolicyConfig`.
+
+**Why this matters:** keeps security self-contained, testable, and extensible.
+
+---
+
+##### 2. Registry for hash functions
+
+* Implemented a **registry pattern** where hashers are registered once (e.g. `"argon2id"`) and referenced by name.
+* Uses `@register_hasher` decorator or `__init__.py` imports.
+
+**Key insight:** makes it easy to add new algorithms without touching models/services.
+
+---
+
+##### 3. Configuration-driven
+
+* Hashing and password rules are fully **config-driven** from `.env` → `config.py` → `current_app.config`.
+* Example: `ARGON2_MEMORY_COST`, `PASSWORD_MIN_LENGTH`.
+
+**Key insight:** allows transparent switching/tuning via config, no code changes.
+
+---
+
+##### 4. Factory + Protocol abstraction
+
+* Defined a `HasherProtocol` (`hash()`, `verify()`).
+* Added `SecurityFactory` that builds the correct `Policy + Hasher` from config.
+* Models (`User`) and services (`UserService`) now depend only on the protocol, not concrete implementations.
+
+**Why this matters:** reduces coupling and makes algorithm choice pluggable.
+
+---
+
+##### 5. Policies with validation
+
+* `Argon2Policy` and `PasswordPolicy` now validate their configs on initialization.
+* Enforce **minimum safe defaults** (memory ≥ 64 MB, strong password rules).
+* Unsafe configs raise `InvalidPolicyConfig`, weak ones trigger warnings.
+
+**Key insight:** protects against accidentally weakening security via misconfiguration.
+
+---
+
+##### 6. Thinner routes
+
+* Routes no longer construct or validate password logic.
+* All security enforcement is delegated to the `security` package via `UserService`.
+
+**Outcome:** controllers are thinner, easier to reason about, and follow single responsibility.
+
+---
+
+##### 7. Tests rewritten and extended
+
+* Old helper-based tests removed.
+
+* New tests in `app/security/tests/` cover:
+
+  * Registry behavior.
+  * Policy validation (success + expected failures).
+  * Hashing correctness (`hash + verify`).
+
+* Integration tests updated to use the new factory-driven setup.
+
+**Key insight:** ensures both **unit coverage** for security internals and **integration coverage** for end-to-end flows.
+
+---
+
+##### Final outcome
+
+* Password handling is **modular, extensible, and secure by default**.
+* Switching hashers (e.g. Argon2 → bcrypt) requires **only config changes**.
+* Safe defaults and validation reduce risk of insecure setups.
+* Tests ensure correctness both in isolation and in the full application flow.
+
+**This lays the foundation for future enhancements** like multi-algorithm migration or per-tenant policies without impacting business logic.
 
 ---

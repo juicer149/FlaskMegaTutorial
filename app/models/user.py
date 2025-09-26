@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 User model (persistence layer).
 
@@ -11,16 +12,14 @@ User model (persistence layer).
 Think of models as: the **data source of truth** —
 they define schema and persistence, and expose low-level behaviors.
 """
-
-
 from datetime import datetime, timezone
-from typing import Optional
 import sqlalchemy as sa
 import sqlalchemy.orm as orm
 from flask_login import UserMixin
 
 from app import db, login
-from app.helpers.security import hash_password, verify_password
+from app.security.core.hasher import Hasher
+from app.security.core.factory import SecurityFactory
 from app.helpers.avatar import gravatar_url
 from app.helpers import tokens
 from .followers import followers  # import association table
@@ -38,14 +37,14 @@ class User(UserMixin, db.Model):
         sa.String(120), index=True, unique=True, nullable=False
     )
     email_display: orm.Mapped[str] = orm.mapped_column(sa.String(120), nullable=False)
-    password_hash: orm.Mapped[Optional[str]] = orm.mapped_column(
+    password_hash: orm.Mapped[str | None] = orm.mapped_column(
         sa.String(1024), nullable=True
     )
     posts: orm.WriteOnlyMapped["Post"] = orm.relationship(  # type: ignore[name-defined]
         back_populates="author"
     )
-    about_me: orm.Mapped[Optional[str]] = orm.mapped_column(sa.String(140))
-    last_seen: orm.Mapped[Optional[datetime]] = orm.mapped_column(
+    about_me: orm.Mapped[str|None] = orm.mapped_column(sa.String(140))
+    last_seen: orm.Mapped[datetime|None] = orm.mapped_column(
         default=lambda: datetime.now(timezone.utc)
     )
     following: orm.WriteOnlyMapped["User"] = orm.relationship(
@@ -71,24 +70,26 @@ class User(UserMixin, db.Model):
     # ------------------------------
     # Password management
     # ------------------------------
-    def set_password(self, password: str) -> None:
-        """Hash and store the user's password."""
-        if not password:
-            raise ValueError("Password cannot be empty")
-        self.password_hash = hash_password(password)
+    def set_password(self, password: str, hasher: Hasher) -> None:
+        """Hash and store the user's password using provided hasher."""
+        self.password_hash = hasher.hash(password)
 
-    def check_password(self, password: Optional[str]) -> bool:
-        """Verify a password against stored hash."""
-        return verify_password(self.password_hash, password)
+    def check_password(self, password: str|None) -> bool:
+        """Verify the provided password against the stored hash."""
+        if self.password_hash is None or password is None:
+            return False
+        hasher = SecurityFactory.get_hasher()
+        return hasher.verify(self.password_hash, password)
 
     # ------------------------------
     # Password reset helpers
     # ------------------------------
+
     def get_reset_password_token(self, expires_in: int = 600) -> str:
         return tokens.generate_reset_token(self.id, expires_in)
 
     @staticmethod
-    def verify_reset_password_token(token: str) -> Optional["User"]:
+    def verify_reset_password_token(token: str) -> User | None:
         user_id = tokens.verify_reset_token(token)
         if user_id is None:
             return None
@@ -97,6 +98,7 @@ class User(UserMixin, db.Model):
     # ------------------------------
     # Profile helpers
     # ------------------------------
+
     def avatar(self, size: int) -> str:
         return gravatar_url(self.email_canonical, size)
 
@@ -108,7 +110,7 @@ class User(UserMixin, db.Model):
         if self.is_following(user):
             self.following.remove(user)
 
-    def is_following(self, user: "User") -> bool:
+    def is_following(self, user: User) -> bool:
         query = sa.select(sa.exists(self.following.select().where(User.id == user.id)))
         return bool(db.session.scalar(query))
 
@@ -150,6 +152,5 @@ class User(UserMixin, db.Model):
 
 
 @login.user_loader
-def load_user(id: str) -> Optional["User"]:
+def load_user(id: str) -> User | None:
     return db.session.get(User, int(id))
-

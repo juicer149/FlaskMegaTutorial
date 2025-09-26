@@ -42,6 +42,9 @@ class Config:
     # Pagination
     POSTS_PER_PAGE = int(os.environ.get("POSTS_PER_PAGE", 3))
 
+    # Which hasher to use (must match registry key in security.core.registry)
+    HASH_VARIANT = os.environ.get("HASH_VARIANT", "argon2")
+
     # Argon2id password hashing parameters
     ARGON2_TIME_COST = int(os.environ.get("ARGON2_TIME_COST", 8))          # iterations
     ARGON2_MEMORY_COST = int(os.environ.get("ARGON2_MEMORY_COST", 131072)) # KiB (128 MB)
@@ -51,9 +54,8 @@ class Config:
     ARGON2_PEPPER = os.environ.get("ARGON2_PEPPER", "")                    # optional pepper
 
     # Password strength configuration
-    PASSWORD_MIN_LENGTH = int(os.environ.get("PASSWORD_MIN_LENGTH", 8))
+    PASSWORD_MIN_LENGTH = int(os.environ.get("PASSWORD_MIN_LENGTH", 12))
     PASSWORD_REQUIRE_UPPER = str_to_bool(os.environ.get("PASSWORD_REQUIRE_UPPERCASE"), default=True)
     PASSWORD_REQUIRE_LOWER = str_to_bool(os.environ.get("PASSWORD_REQUIRE_LOWERCASE"), default=True)
     PASSWORD_REQUIRE_DIGIT = str_to_bool(os.environ.get("PASSWORD_REQUIRE_DIGIT"), default=True)
     PASSWORD_REQUIRE_SPECIAL = str_to_bool(os.environ.get("PASSWORD_REQUIRE_SPECIAL"), default=True)
-

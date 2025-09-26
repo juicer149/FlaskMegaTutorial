@@ -10,12 +10,10 @@ models store data, services decide the rules.
 """
 
 import sqlalchemy as sa
-from flask import current_app
 from app import db
 from app.models import User
 from app.helpers.validators import check_unique_value
-from app.helpers.security import is_strong_password
-from app.helpers.security_policy import PasswordPolicy
+from app.security.core.factory import SecurityFactory
 
 
 class UserService:
@@ -33,30 +31,15 @@ class UserService:
         return check_unique_value(email, values, original=original)
 
     @staticmethod
-    def _get_password_policy() -> PasswordPolicy:
-        """Read password policy from config (centralized here)."""
-        return PasswordPolicy(
-            min_length=current_app.config.get("PASSWORD_MIN_LENGTH", 8),
-            require_upper=current_app.config.get("PASSWORD_REQUIRE_UPPER", True),
-            require_lower=current_app.config.get("PASSWORD_REQUIRE_LOWER", True),
-            require_digit=current_app.config.get("PASSWORD_REQUIRE_DIGIT", True),
-            require_special=current_app.config.get("PASSWORD_REQUIRE_SPECIAL", True),
-        )
-
-    @staticmethod
     def validate_password_strength(password: str) -> None:
-        """Validate password according to policy. Raises ValueError if weak."""
-        policy = UserService._get_password_policy()
-        is_strong_password(password, policy)
+        policy = SecurityFactory.get_password_policy()
+        policy.validate(password)
+
     # ------------------------------
     # User operations
     # ------------------------------
     @staticmethod
-    def register_user(
-        username: str | None,
-        email: str | None,
-        password: str | None,
-    ) -> User:
+    def register_user(username: str, email: str, password: str) -> User:
         if not username or not email or not password:
             raise ValueError("Username, email and password are required")
 
@@ -73,11 +56,13 @@ class UserService:
 
         # Create user
         user = User(username, email)
-        user.set_password(password)
+        hasher = SecurityFactory.get_hasher()
+        user.set_password(password, hasher)
 
         db.session.add(user)
         db.session.commit()
         return user
+
 
     @staticmethod
     def update_profile(user: User, username: str, about_me: str | None) -> None:
@@ -97,11 +82,13 @@ class UserService:
     @staticmethod
     def change_password(user: User, new_password: str) -> None:
         UserService.validate_password_strength(new_password)
-        user.set_password(new_password)
+        hasher = SecurityFactory.get_hasher()
+        user.set_password(new_password, hasher)
         db.session.commit()
 
     @staticmethod
     def reset_password(user: User, new_password: str) -> None:
         UserService.validate_password_strength(new_password)
-        user.set_password(new_password)
+        hasher = SecurityFactory.get_hasher()
+        user.set_password(new_password, hasher)
         db.session.commit()

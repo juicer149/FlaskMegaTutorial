@@ -102,7 +102,6 @@ def index():
         prev_url=prev_url,
     )
 
-
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -111,9 +110,7 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = db.session.scalar(
-            sa.select(User).where(
-                User.username_canonical == form.username.data.lower()  # type: ignore
-            )
+            sa.select(User).where(User.username_canonical == form.username.data.lower())  # type: ignore
         )
         if user is None or not user.check_password(form.password.data):
             flash("Invalid username or password")
@@ -142,9 +139,9 @@ def register():
     if form.validate_on_submit():
         try:
             user = UserService.register_user(
-                username=form.username.data,
-                email=form.email.data,
-                password=form.password.data,
+                    username=form.username.data,  # type: ignore
+                    email=form.email.data,  # type: ignore
+                    password=form.password.data,  # type: ignore
             )
             login_user(user)
             flash(f"Congratulations, {user.username_display}, you are now a registered user!")
@@ -291,12 +288,11 @@ def explore():
 def reset_password_request():
     if current_user.is_authenticated:
         return redirect(url_for("main.index"))
+
     form = ResetPasswordRequestForm()
     if form.validate_on_submit():
         email = (form.email.data or "").strip().lower()
-        user = db.session.scalar(
-            sa.select(User).where(User.email_canonical == email)
-        )
+        user = db.session.scalar(sa.select(User).where(User.email_canonical == email))
         if user:
             send_password_reset_email(user)
 
@@ -318,7 +314,10 @@ def reset_password(token):
     form = ResetPasswordForm()
     if form.validate_on_submit():
         try:
-            UserService.reset_password(user, form.password.data)  # type: ignore
+            UserService.reset_password(
+                user,
+                form.password.data,  # type: ignore
+            )
             flash("Your password has been reset.")
             return redirect(url_for("main.login"))
         except ValueError as e:

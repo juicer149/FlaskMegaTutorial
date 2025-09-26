@@ -2,6 +2,7 @@ import unittest
 from app import create_app, db
 from app.models import User
 from tests.test_config import TestingConfig
+from app.security.core.factory import SecurityFactory
 
 
 class RoutesCase(unittest.TestCase):
@@ -11,6 +12,7 @@ class RoutesCase(unittest.TestCase):
         self.app_context.push()
         self.client = self.app.test_client()
         db.create_all()
+        self.hasher = SecurityFactory.get_hasher()
 
     def tearDown(self):
         db.session.remove()
@@ -62,7 +64,7 @@ class RoutesCase(unittest.TestCase):
 
     def test_login_success(self):
         u = User(username="Alice", email="alice@example.com")
-        u.set_password("ValidPass1!")
+        u.set_password("ValidPass1!", self.hasher)
         db.session.add(u)
         db.session.commit()
 
@@ -71,7 +73,7 @@ class RoutesCase(unittest.TestCase):
 
     def test_login_invalid_credentials(self):
         u = User(username="Alice", email="alice@example.com")
-        u.set_password("ValidPass1!")
+        u.set_password("ValidPass1!", self.hasher)
         db.session.add(u)
         db.session.commit()
 

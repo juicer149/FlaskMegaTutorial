@@ -7,7 +7,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_mail import Mail
 from dotenv import load_dotenv
-from config import Config
+from app.config import Config
 
 db = SQLAlchemy()
 migrate = Migrate()
